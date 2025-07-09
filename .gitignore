@@ -87,3 +87,15 @@ jspm_packages/
 # Project specific
 planning-scraper.md
 planning.md
+
+# Repos externos (no versionar, solo referencias)
+external/*/
+!external/.gitkeep
+
+# Mantener estructura pero no contenido
+external/browser-mcp/*
+!external/browser-mcp/.gitkeep
+external/scraperr/*
+!external/scraperr/.gitkeep
+external/deepscrape/*
+!external/deepscrape/.gitkeep

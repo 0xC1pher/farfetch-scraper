@@ -2,6 +2,7 @@
   "name": "farfetch-scraper-orchestrator",
   "version": "0.1.0",
   "description": "Orquestador para Farfetch Scraper con Browser MCP, Scraperr, deepscrape y MinIO.",
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -22,12 +23,16 @@
     "dotenv": "^16.4.5",
     "minio": "^7.0.30",
     "next": "^14.0.0",
+    "puppeteer": "^24.12.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.4",
+    "@types/puppeteer": "^5.4.7",
     "@types/uuid": "^9.0.8",
     "typescript": "^5.4.5"
   }
