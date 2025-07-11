@@ -1,4 +1,4 @@
-import { ProxyConfig, ProxyProvider, ProxyValidationResult } from '../types/index.js';
+import { ProxyConfig, ProxyProvider, ProxyValidationResult } from '../types/index';
 
 /**
  * Clase base abstracta para proveedores de proxies

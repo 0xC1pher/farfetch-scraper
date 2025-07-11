@@ -1,12 +1,12 @@
 // Re-exportaciones principales
-export { ProxyManager } from './core/manager.js';
-export { BaseProxyProvider } from './providers/base.js';
-export { ProxyScrapeProvider } from './providers/proxyscrape.js';
+export { ProxyManager } from './core/manager';
+export { BaseProxyProvider } from './providers/base';
+export { ProxyScrapeProvider } from './providers/proxyscrape';
 
 // Strategies
-export { RoundRobinStrategy } from './core/strategies/round-robin.js';
-export { RandomStrategy } from './core/strategies/random.js';
-export { WeightedStrategy } from './core/strategies/weighted.js';
+export { RoundRobinStrategy } from './core/strategies/round-robin';
+export { RandomStrategy } from './core/strategies/random';
+export { WeightedStrategy } from './core/strategies/weighted';
 
 // Tipos
 export type {
@@ -16,4 +16,4 @@ export type {
   ProxyRotationStrategy,
   ProxyProvider,
   ProxyManagerOptions
-} from './types/index.js';
+} from './types/index';

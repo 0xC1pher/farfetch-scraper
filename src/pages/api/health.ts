@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { minioStorage } from '../../modules/minio/index.js';
-import { mexaCache } from '../../cache/index.js';
-import { browserMCP } from '../../modules/browser-mcp/index.js';
-import { scraperr } from '../../modules/scraperr/index.js';
+import { minioStorage } from '../../modules/minio';
+import { mexaCache } from '../../cache';
+import { browserMCP } from '../../modules/browser-mcp';
+import { scraperr } from '../../modules/scraperr';
 
 interface HealthResponse {
   success: boolean;

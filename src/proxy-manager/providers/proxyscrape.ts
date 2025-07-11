@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { SocksProxyAgent } from 'socks-proxy-agent';
-import { ProxyConfig, ProxyValidationResult } from '../types/index.js';
-import { BaseProxyProvider } from './base.js';
+import { ProxyConfig, ProxyValidationResult } from '../types/index';
+import { BaseProxyProvider } from './base';
 
 // Definición de tipos para axios
 type AxiosInstance = any;

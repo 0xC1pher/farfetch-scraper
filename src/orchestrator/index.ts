@@ -1,6 +1,6 @@
-import { browserMCP } from '../modules/browser-mcp/index.js';
-import { minioStorage, SessionData } from '../modules/minio/index.js';
-import { scraperr, Offer } from '../modules/scraperr/index.js';
+import { browserMCP } from '../modules/browser-mcp/index';
+import { minioStorage, SessionData } from '../modules/minio/index';
+import { scraperr, Offer } from '../modules/scraperr/index';
 
 type OrchestratorOptions = {
   sessionId?: string;

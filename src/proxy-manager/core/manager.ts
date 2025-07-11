@@ -6,9 +6,9 @@ import {
   ProxyRotationStrategy, 
   ProxyStats, 
   ProxyValidationResult 
-} from '../types/index.js';
-import { RoundRobinStrategy } from './strategies/round-robin.js';
-import { RandomStrategy } from './strategies/random.js';
+} from '../types/index';
+import { RoundRobinStrategy } from './strategies/round-robin';
+import { RandomStrategy } from './strategies/random';
 
 /**
  * Clase principal del Proxy Manager

@@ -1,4 +1,4 @@
-import { ProxyConfig, ProxyRotationStrategy } from '../../types/index.js';
+import { ProxyConfig, ProxyRotationStrategy } from '../../types/index';
 
 export class RandomStrategy implements ProxyRotationStrategy {
   public getNextProxy(proxies: ProxyConfig[]): ProxyConfig | null {

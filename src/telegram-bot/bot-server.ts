@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { MexaTelegramBot } from './index.js';
+import { MexaTelegramBot } from './index';
 import dotenv from 'dotenv';
 
 // Cargar variables de entorno

@@ -4,7 +4,7 @@ import { execSync } from 'child_process';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { BrowserMCPConfig } from './config';
-import { MODULE_PATHS } from '../../config/modules.js';
+import { MODULE_PATHS } from '../../config/modules';
 
 // Enhanced Page interface with additional methods
 interface EnhancedPage extends Page {

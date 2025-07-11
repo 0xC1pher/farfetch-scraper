@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { minioStorage } from '../../../modules/minio/index.js';
+import { minioStorage } from '../../../modules/minio';
 
 interface SessionResponse {
   success: boolean;

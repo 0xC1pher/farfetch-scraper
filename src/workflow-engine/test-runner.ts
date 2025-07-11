@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { workflowEngine } from './index.js';
+import { workflowEngine } from './index';
 import dotenv from 'dotenv';
 
 // Cargar variables de entorno

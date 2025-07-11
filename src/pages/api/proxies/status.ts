@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { ProxyManager } from '../../../proxy-manager/index.js';
+import { ProxyManager } from '../../../proxy-manager/index';
 
 interface ProxyStatusResponse {
   success: boolean;

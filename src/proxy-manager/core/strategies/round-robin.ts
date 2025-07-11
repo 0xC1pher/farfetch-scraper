@@ -1,4 +1,4 @@
-import { ProxyConfig, ProxyRotationStrategy } from '../../types/index.js';
+import { ProxyConfig, ProxyRotationStrategy } from '../../types/index';
 
 /**
  * Simple Round-Robin strategy

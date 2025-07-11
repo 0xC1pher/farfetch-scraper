@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { workflowEngine } from '../../../workflow-engine/index.js';
-import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware.js';
+import { workflowEngine } from '../../../workflow-engine';
+import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware';
 import { readdirSync } from 'fs';
 import { join } from 'path';
 

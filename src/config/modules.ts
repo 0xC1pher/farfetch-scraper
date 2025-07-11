@@ -16,19 +16,19 @@ export const MODULE_PATHS = {
   BROWSER_MCP: {
     PATH: path.join(PROJECT_ROOT, 'src', 'modules', 'browser-mcp'),
     REPO: 'https://github.com/hangwin/mcp-chrome',
-    ENTRY_POINT: 'src/index.js' // Ajustar según la estructura del repo
+    ENTRY_POINT: 'src/index' // Ajustar según la estructura del repo
   },
   
   SCRAPERR: {
     PATH: path.join(PROJECT_ROOT, 'src', 'modules', 'scraperr'),
     REPO: 'https://github.com/jaypyles/Scraperr',
-    ENTRY_POINT: 'dist/index.js'
+    ENTRY_POINT: 'dist/index'
   },
   
   DEEPSCRAPE: {
     PATH: path.join(PROJECT_ROOT, 'src', 'modules', 'deepscrape'),
     REPO: 'https://github.com/stretchcloud/deepscrape',
-    ENTRY_POINT: 'dist/index.js'
+    ENTRY_POINT: 'dist/index'
   }
 } as const;
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi, beforeAll } from 'vitest';
-import { ProxyManager } from '../core/manager.js';
-import type { ProxyConfig, ProxyProvider, ProxyValidationResult } from '../types/index.js';
+import { ProxyManager } from '../core/manager';
+import type { ProxyConfig, ProxyProvider, ProxyValidationResult } from '../types/index';
 
 describe('ProxyManager', () => {
   let manager: ProxyManager;

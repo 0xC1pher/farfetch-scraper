@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import yaml from 'js-yaml';
-import Orchestrator from '../orchestrator/index.js';
-import { ProxyManager } from '../proxy-manager/index.js';
+import Orchestrator from '../orchestrator/index';
+import { ProxyManager } from '../proxy-manager/index';
 
 export interface WorkflowStep {
   name: string;

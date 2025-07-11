@@ -75,7 +75,7 @@ export class DeepscrapeHook {
     };
 
     return new Promise<DeepscrapeResult>((resolve, reject) => {
-      const childProcess: ChildProcess = spawn('node', ['resolve.js'], {
+      const childProcess: ChildProcess = spawn('node', ['resolve'], {
         cwd: this.config.externalPath,
         env: { 
           ...process.env, 

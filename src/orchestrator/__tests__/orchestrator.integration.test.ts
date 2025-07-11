@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Orchestrator from '../index.js';
+import Orchestrator from '../index';
 import { existsSync } from 'fs';
-import { MinioStorage } from '../../modules/minio/index.js';
+import { MinioStorage } from '../../modules/minio/index';
 
 // Mock the lowest-level dependencies: fs
 vi.mock('fs');
@@ -18,7 +18,7 @@ vi.mock('minio', () => {
 });
 
 // Mock the browser-mcp module to simulate availability
-vi.mock('../../modules/browser-mcp/index.js', () => {
+vi.mock('../../modules/browser-mcp/index', () => {
     const mockBrowserMCP = {
         login: vi.fn(),
         getStatus: vi.fn().mockResolvedValue({ available: true, version: '1.0.0' }),
@@ -32,7 +32,7 @@ vi.mock('../../modules/browser-mcp/index.js', () => {
 });
 
 // Mock the scraperr module to simulate availability
-vi.mock('../../modules/scraperr/index.js', () => {
+vi.mock('../../modules/scraperr/index', () => {
     const mockScraperr = {
         scrapeOffers: vi.fn(),
         getStatus: vi.fn().mockResolvedValue({ available: true, version: '1.0.0' }),
@@ -54,8 +54,8 @@ describe('Orchestrator Integration Test', () => {
         vi.mocked(existsSync).mockReturnValue(true);
 
         // Get the mocked modules
-        const { browserMCP } = await import('../../modules/browser-mcp/index.js');
-        const { scraperr } = await import('../../modules/scraperr/index.js');
+        const { browserMCP } = await import('../../modules/browser-mcp/index');
+        const { scraperr } = await import('../../modules/scraperr/index');
         mockBrowserMCP = browserMCP;
         mockScraperr = scraperr;
 

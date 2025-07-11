@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import Orchestrator from '../../../orchestrator/index.js';
-import { withMiddleware, rateLimit, validateSchema, requestLogger, cors, schemas } from '../../../middleware/api-middleware.js';
+import Orchestrator from '../../../orchestrator';
+import { withMiddleware, rateLimit, validateSchema, requestLogger, cors, schemas } from '../../../middleware/api-middleware';
 
 interface LoginRequest {
   email: string;

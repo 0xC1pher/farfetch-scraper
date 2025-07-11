@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { minioStorage } from '../../../modules/minio/index.js';
-import { mexaCache } from '../../../cache/index.js';
+import { minioStorage } from '../../../modules/minio';
+import { mexaCache } from '../../../cache';
 
 interface OffersRequest {
   limit?: number;
@@ -40,7 +40,7 @@ export default async function handler(
     }: OffersRequest = req.query;
 
     // Validación de parámetros
-    const limitNum = parseInt(limit as string);
+    const limitNum = parseInt(String(limit || '50'));
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 200) {
       return res.status(400).json({
         success: false,

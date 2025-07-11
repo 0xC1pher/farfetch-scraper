@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware.js';
+import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware';
 
 interface BotStatusResponse {
   success: boolean;
