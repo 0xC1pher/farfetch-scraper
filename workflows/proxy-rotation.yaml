@@ -1,0 +1,59 @@
+name: "Proxy Rotation"
+description: "Workflow para gestión y rotación de proxies"
+version: "1.0.0"
+triggers:
+  - manual
+  - scheduled
+  - api
+variables:
+  rotationCount: "${rotationCount || 5}"
+  delayBetweenRotations: "${delayBetweenRotations || 3000}"
+
+steps:
+  - name: "Initial Proxy Check"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 3
+      delay: 1000
+
+  - name: "Test Current Proxy"
+    action: "delay"
+    params:
+      duration: 1000
+
+  - name: "Rotate Proxy 1"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 2
+      delay: 1000
+
+  - name: "Wait Between Rotations"
+    action: "delay"
+    params:
+      duration: "${delayBetweenRotations}"
+
+  - name: "Rotate Proxy 2"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 2
+      delay: 1000
+
+  - name: "Wait Between Rotations"
+    action: "delay"
+    params:
+      duration: "${delayBetweenRotations}"
+
+  - name: "Rotate Proxy 3"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 2
+      delay: 1000
+
+  - name: "Final Proxy Validation"
+    action: "delay"
+    params:
+      duration: 2000

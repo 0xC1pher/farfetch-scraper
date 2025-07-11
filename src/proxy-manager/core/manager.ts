@@ -8,6 +8,7 @@ import {
   ProxyValidationResult 
 } from '../types/index.js';
 import { RoundRobinStrategy } from './strategies/round-robin.js';
+import { RandomStrategy } from './strategies/random.js';
 
 /**
  * Clase principal del Proxy Manager
@@ -284,11 +285,10 @@ export class ProxyManager extends EventEmitter {
     switch (this.options.rotationStrategy) {
       case 'round-robin':
         return new RoundRobinStrategy();
+      case 'random':
+        return new RandomStrategy();
       case 'best-performance':
         // Implementar estrategia de mejor rendimiento
-        throw new Error('Not implemented yet');
-      case 'random':
-        // Implementar estrategia aleatoria
         throw new Error('Not implemented yet');
       default:
         return new RoundRobinStrategy();

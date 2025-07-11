@@ -35,9 +35,7 @@ export interface ProxyValidationResult {
 }
 
 export interface ProxyRotationStrategy {
-  getNextProxy(proxies: ProxyConfig[]): ProxyConfig;
-  onRequestSuccess(proxy: ProxyConfig): void;
-  onRequestFailure(proxy: ProxyConfig): void;
+  getNextProxy(proxies: ProxyConfig[]): ProxyConfig | null;
 }
 
 export interface ProxyProvider {

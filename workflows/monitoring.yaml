@@ -1,0 +1,44 @@
+name: "System Monitoring"
+description: "Workflow para monitoreo del estado del sistema"
+version: "1.0.0"
+triggers:
+  - scheduled
+  - api
+variables:
+  checkInterval: "${checkInterval || 30000}"
+  maxChecks: "${maxChecks || 3}"
+
+steps:
+  - name: "Check Proxy Status"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 2
+      delay: 1000
+
+  - name: "Monitor Delay"
+    action: "delay"
+    params:
+      duration: "${checkInterval}"
+
+  - name: "Validate System Health"
+    action: "delay"
+    params:
+      duration: 2000
+
+  - name: "Check Proxy Status Again"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 2
+      delay: 1000
+
+  - name: "Final Monitor Delay"
+    action: "delay"
+    params:
+      duration: "${checkInterval}"
+
+  - name: "Complete Health Check"
+    action: "delay"
+    params:
+      duration: 1000

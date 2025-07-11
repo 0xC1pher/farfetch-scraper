@@ -1,0 +1,42 @@
+name: "Authentication Flow"
+description: "Workflow para autenticación en Farfetch con gestión de sesiones"
+version: "1.0.0"
+triggers:
+  - manual
+  - api
+variables:
+  email: "${email}"
+  password: "${password}"
+  fingerprintLevel: "${fingerprintLevel || 'medium'}"
+
+steps:
+  - name: "Rotate Proxy"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 3
+      delay: 1000
+    timeout: 10000
+
+  - name: "Login to Farfetch"
+    action: "auth.login"
+    params:
+      email: "${email}"
+      password: "${password}"
+      fingerprintLevel: "${fingerprintLevel}"
+    retry:
+      attempts: 3
+      delay: 2000
+    timeout: 30000
+
+  - name: "Validate Session"
+    action: "delay"
+    params:
+      duration: 1000
+    condition: "sessionId"
+
+  - name: "Save Session Data"
+    action: "data.save"
+    params:
+      source: "session"
+      format: "json"

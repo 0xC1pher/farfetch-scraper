@@ -124,7 +124,12 @@ export class MinioStorage {
         stream.on('end', () => {
           try {
             const data = Buffer.concat(chunks).toString();
-            const sessionData = JSON.parse(data) as SessionData;
+            const parsedData = JSON.parse(data);
+            // Ensure timestamp is a Date object
+            const sessionData: SessionData = {
+              ...parsedData,
+              timestamp: new Date(parsedData.timestamp),
+            };
             resolve(sessionData);
           } catch (error) {
             reject(error);
@@ -182,15 +187,15 @@ export class MinioStorage {
     try {
       const objects = await this.client.listObjects(this.bucket, 'scraping/', true);
       const results: ScrapingData[] = [];
-      
+
       for await (const obj of objects) {
         if (results.length >= limit) break;
-        
+
         try {
           const stream = await this.client.getObject(this.bucket, obj.name);
           const data = await this.streamToBuffer(stream);
           const scrapingData = JSON.parse(data.toString()) as ScrapingData;
-          
+
           if (scrapingData.url === url) {
             results.push(scrapingData);
           }
@@ -198,10 +203,55 @@ export class MinioStorage {
           console.warn(`⚠️ Error cargando objeto: ${obj.name}`);
         }
       }
-      
+
       return results;
     } catch (error) {
       console.error('❌ Error cargando datos de scraping:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtener datos de scraping para la API (formato optimizado)
+   */
+  async getScrapingData(url: string, limit: number = 10): Promise<any[]> {
+    if (!this.isAvailable) {
+      return [];
+    }
+
+    try {
+      const prefix = `scraping/`;
+      const objects: any[] = [];
+
+      const stream = this.client.listObjects(this.bucket, prefix, true);
+
+      for await (const obj of stream) {
+        if (objects.length >= limit) break;
+
+        try {
+          const dataStream = await this.client.getObject(this.bucket, obj.name!);
+          const data = await this.streamToBuffer(dataStream);
+          const scrapingData = JSON.parse(data.toString());
+
+          // Filtrar por URL si se especifica
+          if (url === 'https://www.farfetch.com' || scrapingData.url?.includes(url)) {
+            objects.push(scrapingData);
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error reading object ${obj.name}:`, error);
+        }
+      }
+
+      // Ordenar por timestamp (más recientes primero)
+      objects.sort((a, b) => {
+        const timestampA = new Date(a.timestamp || 0).getTime();
+        const timestampB = new Date(b.timestamp || 0).getTime();
+        return timestampB - timestampA;
+      });
+
+      return objects;
+    } catch (error) {
+      console.error(`❌ Error getting scraping data for ${url}:`, error);
       return [];
     }
   }
@@ -289,4 +339,4 @@ export class MinioStorage {
 }
 
 // Exportar instancia por defecto
-export const minioStorage = new MinioStorage(); 
+export const minioStorage = new MinioStorage();
