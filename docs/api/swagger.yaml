@@ -1,0 +1,521 @@
+openapi: 3.0.3
+info:
+  title: Mexa Farfetch Scraper API
+  description: |
+    API REST para el sistema de web scraping de Farfetch con gestión de sesiones,
+    proxies y extracción automatizada de ofertas.
+  version: 1.0.0
+  contact:
+    name: Equipo Mexa
+    email: dev@mexa.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000/api
+    description: Desarrollo local
+  - url: https://api.mexa.com
+    description: Producción
+
+paths:
+  /auth/login:
+    post:
+      summary: Autenticar usuario en Farfetch
+      description: |
+        Inicia sesión en Farfetch usando Browser MCP y persiste la sesión en MinIO.
+        Maneja automáticamente fingerprinting y rotación de proxies.
+      tags:
+        - Autenticación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email de usuario de Farfetch
+                  example: "user@example.com"
+                password:
+                  type: string
+                  format: password
+                  description: Contraseña de usuario
+                  example: "securePassword123"
+                fingerprintLevel:
+                  type: string
+                  enum: [low, medium, high]
+                  default: medium
+                  description: Nivel de fingerprinting para evasión
+                proxy:
+                  type: string
+                  description: Proxy específico a usar (opcional)
+                  example: "192.168.1.1:8080"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  sessionId:
+                    type: string
+                    description: ID único de la sesión
+                    example: "session-1641234567890"
+                  message:
+                    type: string
+                    example: "Login successful"
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Servicio de autenticación no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sessions/{id}:
+    get:
+      summary: Obtener información de sesión
+      description: Recupera información de una sesión específica (sin datos sensibles)
+      tags:
+        - Sesiones
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID de la sesión
+          example: "session-1641234567890"
+      responses:
+        '200':
+          description: Sesión encontrada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  session:
+                    $ref: '#/components/schemas/SessionInfo'
+                  message:
+                    type: string
+                    example: "Session retrieved successfully"
+        '404':
+          description: Sesión no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Eliminar sesión
+      description: Elimina una sesión específica del almacenamiento
+      tags:
+        - Sesiones
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ID de la sesión
+      responses:
+        '200':
+          description: Sesión eliminada exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Session deleted successfully"
+
+  /scraping/start:
+    post:
+      summary: Iniciar proceso de scraping
+      description: |
+        Inicia un trabajo de scraping usando una sesión existente.
+        Aplica filtros opcionales y maneja reintentos automáticos.
+      tags:
+        - Scraping
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sessionId
+                - scrapeUrl
+              properties:
+                sessionId:
+                  type: string
+                  description: ID de sesión válida
+                  example: "session-1641234567890"
+                scrapeUrl:
+                  type: string
+                  format: uri
+                  description: URL a scrapear
+                  example: "https://www.farfetch.com/shopping/women/items.aspx"
+                maxRetries:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+                  default: 3
+                  description: Número máximo de reintentos
+                filters:
+                  $ref: '#/components/schemas/OfferFilters'
+      responses:
+        '200':
+          description: Scraping completado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  jobId:
+                    type: string
+                    description: ID único del trabajo de scraping
+                    example: "scrape_1641234567890_abc123"
+                  offers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Offer'
+                  totalFound:
+                    type: integer
+                    description: Número total de ofertas encontradas
+                    example: 25
+                  message:
+                    type: string
+                    example: "Successfully scraped 25 offers"
+
+  /offers/latest:
+    get:
+      summary: Obtener ofertas más recientes
+      description: |
+        Recupera las ofertas más recientes del almacenamiento con filtros opcionales.
+        Los datos se ordenan por timestamp (más recientes primero).
+      tags:
+        - Ofertas
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+          description: Número máximo de ofertas a retornar
+        - name: url
+          in: query
+          schema:
+            type: string
+            format: uri
+            default: "https://www.farfetch.com"
+          description: URL base para filtrar ofertas
+        - name: minPrice
+          in: query
+          schema:
+            type: number
+            minimum: 0
+          description: Precio mínimo para filtrar
+        - name: maxPrice
+          in: query
+          schema:
+            type: number
+            minimum: 0
+          description: Precio máximo para filtrar
+        - name: brand
+          in: query
+          schema:
+            type: string
+          description: Marca para filtrar (búsqueda parcial)
+        - name: minDiscount
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            maximum: 100
+          description: Descuento mínimo en porcentaje
+      responses:
+        '200':
+          description: Ofertas recuperadas exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  offers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Offer'
+                  totalFound:
+                    type: integer
+                    example: 15
+                  message:
+                    type: string
+                    example: "Found 15 offers"
+
+  /proxies/status:
+    get:
+      summary: Obtener estado de proxies
+      description: Recupera información detallada sobre el estado de todos los proxies
+      tags:
+        - Proxies
+      responses:
+        '200':
+          description: Estado de proxies recuperado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  proxies:
+                    $ref: '#/components/schemas/ProxyStatus'
+                  currentProxy:
+                    $ref: '#/components/schemas/ProxyInfo'
+                  message:
+                    type: string
+                    example: "Proxy status retrieved successfully"
+
+    post:
+      summary: Rotar proxy actual
+      description: Fuerza la rotación al siguiente proxy disponible
+      tags:
+        - Proxies
+      responses:
+        '200':
+          description: Proxy rotado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  currentProxy:
+                    $ref: '#/components/schemas/ProxyInfo'
+                  message:
+                    type: string
+                    example: "Proxy rotated successfully"
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Descripción del error
+          example: "Invalid credentials"
+
+    SessionInfo:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          example: "session-1641234567890"
+        userId:
+          type: string
+          example: "user123"
+        status:
+          type: string
+          enum: [active, expired, invalid]
+          example: "active"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-07-11T10:30:00Z"
+        fingerprint:
+          type: object
+          description: Información de fingerprint (sin datos sensibles)
+
+    OfferFilters:
+      type: object
+      properties:
+        minPrice:
+          type: number
+          minimum: 0
+          description: Precio mínimo
+          example: 50
+        maxPrice:
+          type: number
+          minimum: 0
+          description: Precio máximo
+          example: 500
+        brand:
+          type: string
+          description: Marca a filtrar
+          example: "Nike"
+        category:
+          type: string
+          description: Categoría a filtrar
+          example: "shoes"
+
+    Offer:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ID único de la oferta
+          example: "product-12345"
+        title:
+          type: string
+          description: Título del producto
+          example: "Nike Air Max 90"
+        brand:
+          type: string
+          description: Marca del producto
+          example: "Nike"
+        price:
+          type: number
+          description: Precio actual
+          example: 120.99
+        originalPrice:
+          type: number
+          description: Precio original (si hay descuento)
+          example: 150.00
+        discount:
+          type: number
+          description: Porcentaje de descuento
+          example: 19.34
+        imageUrl:
+          type: string
+          format: uri
+          description: URL de la imagen del producto
+          example: "https://cdn.farfetch.com/image.jpg"
+        productUrl:
+          type: string
+          format: uri
+          description: URL del producto en Farfetch
+          example: "https://www.farfetch.com/product/12345"
+        availability:
+          type: boolean
+          description: Disponibilidad del producto
+          example: true
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp de cuando se extrajo la oferta
+          example: "2025-07-11T10:30:00Z"
+
+    ProxyStatus:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total de proxies configurados
+          example: 10
+        active:
+          type: integer
+          description: Proxies activos
+          example: 8
+        inactive:
+          type: integer
+          description: Proxies inactivos
+          example: 2
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProxyDetail'
+
+    ProxyDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "192.168.1.1:8080"
+        host:
+          type: string
+          example: "192.168.1.1"
+        port:
+          type: integer
+          example: 8080
+        type:
+          type: string
+          enum: [http, https, socks4, socks5]
+          example: "http"
+        country:
+          type: string
+          example: "ES"
+        isActive:
+          type: boolean
+          example: true
+        lastChecked:
+          type: string
+          format: date-time
+          example: "2025-07-11T10:25:00Z"
+        latency:
+          type: number
+          description: Latencia en milisegundos
+          example: 250
+        successRate:
+          type: number
+          description: Tasa de éxito en porcentaje
+          example: 95.5
+
+    ProxyInfo:
+      type: object
+      properties:
+        host:
+          type: string
+          example: "192.168.1.1"
+        port:
+          type: integer
+          example: 8080
+        type:
+          type: string
+          enum: [http, https, socks4, socks5]
+          example: "http"
+
+tags:
+  - name: Autenticación
+    description: Endpoints para manejo de autenticación en Farfetch
+  - name: Sesiones
+    description: Gestión de sesiones de usuario
+  - name: Scraping
+    description: Operaciones de web scraping
+  - name: Ofertas
+    description: Recuperación y filtrado de ofertas
+  - name: Proxies
+    description: Gestión y monitoreo de proxies

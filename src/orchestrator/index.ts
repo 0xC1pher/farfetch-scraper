@@ -130,6 +130,21 @@ export class Orchestrator {
         
         if (offers.length > 0) {
           this.log(`✅ Scraping exitoso: ${offers.length} ofertas encontradas`);
+
+          // Guardar datos de scraping en MinIO para la API
+          try {
+            await this.storage.saveScrapingData({
+              url: scrapeUrl,
+              selectors: [], // Los selectores se manejan internamente en scraperr
+              data: { offers, timestamp: new Date(), totalFound: offers.length },
+              timestamp: new Date()
+            });
+            this.log(`📦 Datos de scraping guardados en MinIO`);
+          } catch (error) {
+            this.log(`⚠️ Error guardando datos de scraping: ${error}`);
+            // No fallar el scraping por error de guardado
+          }
+
           return offers;
         }
         throw new Error('No se encontraron ofertas');
@@ -154,6 +169,21 @@ export class Orchestrator {
       
       if (offers.length > 0) {
         this.log(`✅ Deepscrape exitoso: ${offers.length} ofertas encontradas`);
+
+        // Guardar datos de scraping en MinIO para la API
+        try {
+          await this.storage.saveScrapingData({
+            url: scrapeUrl,
+            selectors: [], // Los selectores se manejan internamente en deepscrape
+            data: { offers, timestamp: new Date(), totalFound: offers.length, source: 'deepscrape' },
+            timestamp: new Date()
+          });
+          this.log(`📦 Datos de deepscrape guardados en MinIO`);
+        } catch (error) {
+          this.log(`⚠️ Error guardando datos de deepscrape: ${error}`);
+          // No fallar el scraping por error de guardado
+        }
+
         return offers;
       }
       throw new Error('Deepscrape tampoco encontró ofertas');

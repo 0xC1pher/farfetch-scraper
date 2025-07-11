@@ -7,7 +7,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest",
+    "bot": "tsx src/telegram-bot/bot-server.ts",
+    "bot:dev": "tsx watch src/telegram-bot/bot-server.ts",
+    "workflow:test": "tsx src/workflow-engine/test-runner.ts",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "keywords": [
     "scraper",
@@ -21,24 +28,41 @@
   "license": "MIT",
   "dependencies": {
     "@types/axios": "^0.9.36",
-    "dotenv": "^16.4.5",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node-telegram-bot-api": "^0.64.9",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "dotenv": "^16.6.1",
     "https-proxy-agent": "^7.0.6",
+    "js-yaml": "^4.1.0",
     "minio": "^7.0.30",
     "next": "^14.0.0",
+    "node-telegram-bot-api": "^0.66.0",
     "puppeteer": "^24.12.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "socks-proxy-agent": "^8.0.5",
+    "tsx": "^4.20.3",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/events": "^3.0.3",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.0",
     "@types/puppeteer": "^5.4.7",
     "@types/uuid": "^9.0.8",
+    "@vitest/ui": "^3.2.4",
     "axios": "^1.6.2",
-    "typescript": "^5.8.3"
+    "jest": "^30.0.4",
+    "ts-jest": "^29.4.0",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
   }
 }

@@ -1,0 +1,68 @@
+name: "Scraping Flow"
+description: "Workflow completo de scraping con autenticación y fallbacks"
+version: "1.0.0"
+triggers:
+  - manual
+  - scheduled
+  - api
+variables:
+  email: "${email}"
+  password: "${password}"
+  scrapeUrl: "${scrapeUrl || 'https://www.farfetch.com/shopping/women/items.aspx'}"
+  maxRetries: "${maxRetries || 3}"
+  filters: "${filters || {}}"
+
+steps:
+  - name: "Initialize Proxy"
+    action: "proxy.rotate"
+    params: {}
+    retry:
+      attempts: 2
+      delay: 1000
+
+  - name: "Authenticate User"
+    action: "auth.login"
+    params:
+      email: "${email}"
+      password: "${password}"
+      fingerprintLevel: "medium"
+    retry:
+      attempts: 3
+      delay: 3000
+    timeout: 45000
+
+  - name: "Wait for Session Stability"
+    action: "delay"
+    params:
+      duration: 2000
+    condition: "sessionId"
+
+  - name: "Execute Scraping"
+    action: "scraping.scrape"
+    params:
+      url: "${scrapeUrl}"
+      sessionId: "${sessionId}"
+      maxRetries: "${maxRetries}"
+    retry:
+      attempts: 2
+      delay: 5000
+    timeout: 120000
+
+  - name: "Apply Filters"
+    action: "data.filter"
+    params:
+      source: "offers"
+      filters: "${filters}"
+    condition: "offers && offers.length > 0"
+
+  - name: "Save Scraping Results"
+    action: "data.save"
+    params:
+      source: "offers_filtered"
+      format: "json"
+    condition: "offers_filtered && offers_filtered.length > 0"
+
+  - name: "Rotate Proxy for Next Run"
+    action: "proxy.rotate"
+    params: {}
+    condition: "offers && offers.length > 0"
