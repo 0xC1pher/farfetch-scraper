@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DeepscrapeHook } from '../index.js';
+import { DeepscrapeHook } from '../index';
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';

@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ScraperrHook } from '../index.js';
+import { ScraperrHook } from '../index';
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { deepscrape } from '../../deepscrape/index.js';
+import { deepscrape } from '../../deepscrape/index';
 
 // Mock external modules
 vi.mock('child_process');
 vi.mock('fs');
 vi.mock('path');
 // Correctly mock the deepscrape module at the right path
-vi.mock('../../deepscrape/index.js');
+vi.mock('../../deepscrape/index');
 
 
 // Test configuration

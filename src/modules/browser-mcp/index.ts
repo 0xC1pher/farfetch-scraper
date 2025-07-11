@@ -79,7 +79,7 @@ export class BrowserMCPHook {
         args.push('--proxy', options.proxy);
       }
 
-      const process = spawn('node', ['index.js', ...args], {
+      const process = spawn('node', ['index', ...args], {
         cwd: this.config.externalPath,
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -132,7 +132,7 @@ export class BrowserMCPHook {
         '--session', sessionId
       ];
 
-      const process = spawn('node', ['index.js', ...args], {
+      const process = spawn('node', ['index', ...args], {
         cwd: this.config.externalPath,
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -183,7 +183,7 @@ export class BrowserMCPHook {
         '--session', sessionId
       ];
 
-      const process = spawn('node', ['index.js', ...args], {
+      const process = spawn('node', ['index', ...args], {
         cwd: this.config.externalPath,
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -234,7 +234,7 @@ export class BrowserMCPHook {
         '--session', sessionId
       ];
 
-      const process = spawn('node', ['index.js', ...args], {
+      const process = spawn('node', ['index', ...args], {
         cwd: this.config.externalPath,
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -281,7 +281,7 @@ export class BrowserMCPHook {
         '--proxy', proxy
       ];
 
-      const process = spawn('node', ['index.js', ...args], {
+      const process = spawn('node', ['index', ...args], {
         cwd: this.config.externalPath,
         stdio: ['pipe', 'pipe', 'pipe']
       });
@@ -327,7 +327,7 @@ export class BrowserMCPHook {
         '--session', sessionId
       ];
 
-      const process = spawn('node', ['index.js', ...args], {
+      const process = spawn('node', ['index', ...args], {
         cwd: this.config.externalPath,
         stdio: ['pipe', 'pipe', 'pipe']
       });

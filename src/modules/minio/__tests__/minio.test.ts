@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { MinioStorage, SessionData } from '../index.js';
+import { MinioStorage, SessionData } from '../index';
 import { Client } from 'minio';
 import { Readable } from 'stream';
 

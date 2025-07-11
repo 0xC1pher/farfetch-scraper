@@ -2,7 +2,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { deepscrape } from '../deepscrape/index.js';
+import { deepscrape } from '../deepscrape';
 
 export interface ScrapingOptions {
   waitForSelector?: string;
@@ -114,7 +114,7 @@ export class ScraperrHook {
     };
 
     return new Promise<Offer[]>((resolve, reject) => {
-      const childProcess: ChildProcess = spawn('node', ['scrape.js'], {
+      const childProcess: ChildProcess = spawn('node', ['scrape'], {
         cwd: this.config.externalPath,
         env: { 
           ...process.env, 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ProxyManager } from '../core/manager.js';
-import type { ProxyConfig, ProxyProvider } from '../types/index.js';
+import { ProxyManager } from '../core/manager';
+import type { ProxyConfig, ProxyProvider } from '../types/index';
 
 const sampleProxies: ProxyConfig[] = [
   { host: 'proxy1.com', port: 8080, protocol: 'http', provider: 'test' },

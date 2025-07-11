@@ -1,18 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Orchestrator from '../index.js';
-import { browserMCP } from '../../modules/browser-mcp/index.js';
-import { minioStorage, SessionData } from '../../modules/minio/index.js';
-import { scraperr } from '../../modules/scraperr/index.js';
+import Orchestrator from '../index';
+import { browserMCP } from '../../modules/browser-mcp/index';
+import { minioStorage, SessionData } from '../../modules/minio/index';
+import { scraperr } from '../../modules/scraperr/index';
 
 // Mock the modules
-vi.mock('../../modules/browser-mcp/index.js', () => ({
+vi.mock('../../modules/browser-mcp/index', () => ({
   browserMCP: {
     login: vi.fn(),
     getStatus: vi.fn(),
   },
 }));
 
-vi.mock('../../modules/minio/index.js', () => ({
+vi.mock('../../modules/minio/index', () => ({
   minioStorage: {
     loadSession: vi.fn(),
     saveSession: vi.fn(),
@@ -20,7 +20,7 @@ vi.mock('../../modules/minio/index.js', () => ({
   },
 }));
 
-vi.mock('../../modules/scraperr/index.js', () => ({
+vi.mock('../../modules/scraperr/index', () => ({
   scraperr: {
     loadSession: vi.fn(),
     scrapeOffers: vi.fn(),

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { mexaCache } from '../../../cache/index.js';
-import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware.js';
+import { mexaCache } from '../../../cache';
+import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware';
 
 interface CacheStatsResponse {
   success: boolean;

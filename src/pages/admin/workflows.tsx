@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react';
-import Head from 'next/head';
+import AdminLayout from '../../components/Layout/AdminLayout';
+import {
+  ArrowPathIcon,
+  PlayIcon,
+  StopIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationTriangleIcon,
+  Cog6ToothIcon
+} from '@heroicons/react/24/outline';
 
 interface WorkflowExecution {
   id: string;
@@ -149,87 +159,131 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <>
-      <Head>
-        <title>Gestión de Workflows - Mexa</title>
-      </Head>
-      
-      <div className="min-h-screen bg-gray-100">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">
-              🔄 Gestión de Workflows
-            </h1>
-            <a 
-              href="/admin" 
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
-              ← Volver al Panel
-            </a>
-          </div>
+    <AdminLayout
+      title="Gestión de Workflows"
+      description="Automatización y procesos"
+    >
+      <div className="space-y-6">
 
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
-              {error}
+            <div className="backdrop-blur-md bg-red-500/20 border border-red-400/30 text-red-100 px-6 py-4 rounded-xl mb-8 shadow-lg">
+              <div className="flex items-center space-x-3">
+                <ExclamationTriangleIcon className="h-4 w-4 text-red-400" />
+                <span className="font-medium">{error}</span>
+              </div>
             </div>
           )}
 
           {/* Ejecutar Workflow */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">🚀 Ejecutar Workflow</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Seleccionar Workflow
-                </label>
-                <select
-                  value={selectedWorkflow}
-                  onChange={(e) => {
-                    setSelectedWorkflow(e.target.value);
-                    setExecutionParams(getWorkflowParams(e.target.value));
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                >
-                  <option value="">Selecciona un workflow...</option>
-                  {workflows?.available.map(workflow => (
-                    <option key={workflow} value={workflow}>
-                      {workflow}
-                    </option>
-                  ))}
-                </select>
-                
+          <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 mb-8 hover:bg-white/15 transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <div className="p-2 bg-green-500/20 rounded-lg mr-3">
+                  <PlayIcon className="h-4 w-4 text-green-400" />
+                </div>
+                Ejecutar Workflow
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-green-200 mb-3">
+                    <Cog6ToothIcon className="h-4 w-4 inline mr-2" />
+                    Seleccionar Workflow
+                  </label>
+                  <select
+                    value={selectedWorkflow}
+                    onChange={(e) => {
+                      setSelectedWorkflow(e.target.value);
+                      setExecutionParams(getWorkflowParams(e.target.value));
+                    }}
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent backdrop-blur-sm transition-all duration-200 mb-6"
+                  >
+                    <option value="" className="bg-slate-800">Selecciona un workflow...</option>
+                    {workflows?.available.map(workflow => (
+                      <option key={workflow} value={workflow} className="bg-slate-800">
+                        {workflow}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <button
                   onClick={executeWorkflow}
                   disabled={!selectedWorkflow}
-                  className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
+                  className={`w-full py-4 px-6 rounded-xl font-medium transition-all duration-200 flex items-center justify-center space-x-3 ${
+                    !selectedWorkflow
+                      ? 'bg-gray-500/20 text-gray-400 cursor-not-allowed border border-gray-400/20'
+                      : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600 shadow-lg hover:shadow-xl transform hover:scale-105'
+                  }`}
                 >
-                  ▶️ Ejecutar Workflow
+                  <PlayIcon className="h-5 w-5" />
+                  <span>Ejecutar Workflow</span>
                 </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-blue-200">
+                  <svg className="h-4 w-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                  </svg>
                   Parámetros (JSON)
                 </label>
                 <textarea
                   value={executionParams}
                   onChange={(e) => setExecutionParams(e.target.value)}
-                  rows={8}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                  placeholder="{ }"
+                  rows={10}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm transition-all duration-200 font-mono text-sm"
+                  placeholder='{\n  "email": "usuario@email.com",\n  "password": "contraseña",\n  "maxRetries": 3\n}'
                 />
               </div>
             </div>
           </div>
 
           {/* Workflows Disponibles */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">📋 Workflows Disponibles</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 mb-8 hover:bg-white/15 transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <div className="p-2 bg-blue-500/20 rounded-lg mr-3">
+                  <svg className="h-4 w-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+                Workflows Disponibles
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {workflows?.available.map(workflow => (
-                <div key={workflow} className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-semibold text-gray-900 mb-2">{workflow}</h3>
-                  <p className="text-sm text-gray-600 mb-3">
+                <div key={workflow} className="backdrop-blur-sm bg-white/5 border border-white/20 rounded-xl p-6 hover:bg-white/10 transition-all duration-200 hover:scale-105">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold text-white text-lg">{workflow}</h3>
+                    <div className={`p-2 rounded-lg ${
+                      workflow === 'auth-flow' ? 'bg-blue-500/20' :
+                      workflow === 'scraping-flow' ? 'bg-green-500/20' :
+                      workflow === 'proxy-rotation' ? 'bg-purple-500/20' :
+                      'bg-orange-500/20'
+                    }`}>
+                      {workflow === 'auth-flow' && (
+                        <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      )}
+                      {workflow === 'scraping-flow' && (
+                        <ArrowPathIcon className="h-5 w-5 text-green-400" />
+                      )}
+                      {workflow === 'proxy-rotation' && (
+                        <svg className="h-5 w-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                        </svg>
+                      )}
+                      {workflow === 'monitoring' && (
+                        <svg className="h-5 w-5 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-300 mb-4 leading-relaxed">
                     {workflow === 'auth-flow' && 'Flujo de autenticación con Farfetch'}
                     {workflow === 'scraping-flow' && 'Scraping completo con filtros'}
                     {workflow === 'proxy-rotation' && 'Rotación y validación de proxies'}
@@ -240,7 +294,7 @@ export default function WorkflowsPage() {
                       setSelectedWorkflow(workflow);
                       setExecutionParams(getWorkflowParams(workflow));
                     }}
-                    className="w-full bg-blue-100 text-blue-800 py-1 px-3 rounded text-sm hover:bg-blue-200"
+                    className="w-full bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-400/30 text-blue-300 py-2 px-4 rounded-lg text-sm hover:from-blue-500/30 hover:to-cyan-500/30 transition-all duration-200 font-medium"
                   >
                     Seleccionar
                   </button>
@@ -250,11 +304,24 @@ export default function WorkflowsPage() {
           </div>
 
           {/* Ejecuciones Recientes */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">📊 Ejecuciones Recientes</h2>
+          <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <div className="p-2 bg-cyan-500/20 rounded-lg mr-3">
+                  <ClockIcon className="h-4 w-4 text-cyan-400" />
+                </div>
+                Ejecuciones Recientes
+              </h2>
+            </div>
             {workflows?.executions.length === 0 ? (
-              <div className="text-center text-gray-500 py-8">
-                No hay ejecuciones recientes
+              <div className="text-center text-gray-400 py-12">
+                <div className="p-4 bg-gray-500/10 rounded-xl border border-gray-400/20 inline-block">
+                  <ClockIcon className="h-6 w-6 text-gray-400 mx-auto mb-3" />
+                  <div className="text-lg font-medium">No hay ejecuciones recientes</div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Los workflows ejecutados aparecerán aquí
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -332,6 +399,6 @@ export default function WorkflowsPage() {
           </div>
         </div>
       </div>
-    </>
+    </AdminLayout>
   );
 }

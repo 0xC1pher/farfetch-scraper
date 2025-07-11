@@ -386,6 +386,57 @@ Selecciona qué filtro quieres configurar:
   }
 
   /**
+   * Manejar comando /favoritos
+   */
+  private async handleFavoritos(chatId: string): Promise<void> {
+    const session = this.getOrCreateSession(chatId);
+
+    if (!session.favorites || session.favorites.length === 0) {
+      const message = `
+❤️ *Tus Favoritos*
+
+No tienes ofertas favoritas aún.
+
+Para agregar ofertas a favoritos, usa el comando /ofertas y presiona el botón ❤️ en las ofertas que te gusten.
+      `;
+
+      await this.bot.sendMessage(chatId, message, {
+        parse_mode: 'Markdown'
+      });
+      return;
+    }
+
+    const message = `
+❤️ *Tus Favoritos*
+
+Tienes ${session.favorites.length} ofertas favoritas guardadas.
+
+*Acciones disponibles:*
+• Ver favoritos
+• Limpiar favoritos
+• Buscar ofertas similares
+    `;
+
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: '👀 Ver Favoritos', callback_data: 'show_favorites' },
+          { text: '🗑️ Limpiar', callback_data: 'clear_favorites' }
+        ],
+        [
+          { text: '🔍 Buscar Similares', callback_data: 'search_similar' },
+          { text: '🛍️ Ver Ofertas', callback_data: 'ofertas' }
+        ]
+      ]
+    };
+
+    await this.bot.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      reply_markup: keyboard
+    });
+  }
+
+  /**
    * Manejar mensajes de texto
    */
   private async handleTextMessage(chatId: string, text: string): Promise<void> {

@@ -1,4 +1,4 @@
-import { ProxyConfig, ProxyRotationStrategy } from '../../types/index.js';
+import { ProxyConfig, ProxyRotationStrategy } from '../../types/index';
 
 interface ProxyWithWeight extends ProxyConfig {
   weight: number;
