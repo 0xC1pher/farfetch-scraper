@@ -90,19 +90,24 @@ jspm_packages/
 #planning.md
 
 # Repos externos (no versionar, solo referencias)
-#external/*/
-#!external/.gitkeep
+external/*/
+!external/.gitkeep
+!external/*/README.md
 
 # Mantener estructura pero no contenido
-#external/browser-mcp/*
-#!external/browser-mcp/.gitkeep
-#external/scraperr/*
-#!external/scraperr/.gitkeep
-#external/deepscrape/*
-#!external/deepscrape/.gitkeep
+external/browser-mcp/*
+!external/browser-mcp/.gitkeep
+!external/browser-mcp/README.md
+external/scraperr/*
+!external/scraperr/.gitkeep
+!external/scraperr/README.md
+external/deepscrape/*
+!external/deepscrape/.gitkeep
+!external/deepscrape/README.md
 
-# Archivos binarios grandes
-minio
+# Archivos binarios grandes de MinIO
+minio*
+mc*
 *.bin
 *.exe
 *.dmg
@@ -122,3 +127,21 @@ data/
 cache/
 tmp/
 temp/
+
+# Dependencias de módulos externos
+external/*/node_modules/
+external/*/dist/
+external/*/build/
+external/*/.git/
+external/*/target/
+external/*/venv/
+external/*/env/
+external/*/__pycache__/
+external/*/*.pyc
+external/*/*.pyo
+external/*/*.egg-info/
+
+# Archivos de configuración local de módulos
+external/*/.env*
+external/*/config.local.*
+external/*/secrets.*
