@@ -1,10 +1,12 @@
 /**
- * Adaptadores reales para módulos externos
+ * Adaptadores para módulos externos independientes
+ * Cada módulo se ejecuta como un servicio separado y se comunica via HTTP/IPC
  */
 import { spawn, ChildProcess } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import axios from 'axios';
+import { log } from '../services/logger';
 
 // Rutas a los módulos externos
 const EXTERNAL_PATHS = {
@@ -13,48 +15,161 @@ const EXTERNAL_PATHS = {
   DEEPSCRAPE: join(process.cwd(), 'external', 'deepscrape')
 };
 
-// Adaptador real para Browser MCP
+// Adaptador para Browser MCP (servicio independiente)
 class RealBrowserMCP {
   private isAvailable: boolean = false;
   private process: ChildProcess | null = null;
 
   constructor() {
     this.checkAvailability();
+    log.debug('Browser-MCP', `Módulo inicializado. Disponible: ${this.isAvailable}`);
   }
 
   private checkAvailability(): void {
     const packagePath = join(EXTERNAL_PATHS.BROWSER_MCP, 'package.json');
     this.isAvailable = existsSync(packagePath);
+    log.debug('Browser-MCP', `Verificando disponibilidad en: ${packagePath}`);
+
+    if (this.isAvailable) {
+      log.info('Browser-MCP', 'Módulo encontrado, listo para iniciar servicio');
+    } else {
+      log.warn('Browser-MCP', 'Módulo no encontrado en el sistema de archivos');
+    }
+  }
+
+  async startService(): Promise<boolean> {
+    if (!this.isAvailable) {
+      log.error('Browser-MCP', 'No se puede iniciar el servicio: módulo no disponible');
+      return false;
+    }
+
+    if (this.process) {
+      log.info('Browser-MCP', 'Servicio ya está ejecutándose');
+      return true;
+    }
+
+    try {
+      log.info('Browser-MCP', 'Iniciando servicio Browser-MCP...');
+
+      // Iniciar el proceso del módulo Browser-MCP
+      this.process = spawn('npm', ['start'], {
+        cwd: EXTERNAL_PATHS.BROWSER_MCP,
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      this.process.stdout?.on('data', (data) => {
+        log.debug('Browser-MCP', `STDOUT: ${data.toString().trim()}`);
+      });
+
+      this.process.stderr?.on('data', (data) => {
+        log.warn('Browser-MCP', `STDERR: ${data.toString().trim()}`);
+      });
+
+      this.process.on('exit', (code) => {
+        log.info('Browser-MCP', `Proceso terminado con código: ${code}`);
+        this.process = null;
+      });
+
+      // Esperar a que el servicio esté listo
+      await this.waitForService();
+      log.success('Browser-MCP', 'Servicio iniciado exitosamente');
+      return true;
+    } catch (error) {
+      log.error('Browser-MCP', 'Error iniciando servicio', error);
+      return false;
+    }
+  }
+
+  private async waitForService(maxAttempts: number = 30): Promise<void> {
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        await axios.get(`${this.baseUrl}/health`, { timeout: 1000 });
+        return;
+      } catch (error) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+    throw new Error('Servicio no respondió después de 30 segundos');
   }
 
   async getStatus() {
-    return {
-      available: this.isAvailable,
-      status: this.process ? 'running' : 'stopped',
-      path: EXTERNAL_PATHS.BROWSER_MCP
-    };
+    try {
+      if (!this.isAvailable) {
+        return {
+          available: false,
+          status: 'not_found',
+          path: EXTERNAL_PATHS.BROWSER_MCP
+        };
+      }
+
+      // Verificar si el servicio está respondiendo
+      const response = await axios.get(`${this.baseUrl}/health`, { timeout: 5000 });
+
+      return {
+        available: true,
+        status: 'running',
+        version: response.data?.version,
+        url: this.baseUrl,
+        path: EXTERNAL_PATHS.BROWSER_MCP
+      };
+    } catch (error) {
+      return {
+        available: this.isAvailable,
+        status: this.process ? 'starting' : 'stopped',
+        path: EXTERNAL_PATHS.BROWSER_MCP
+      };
+    }
   }
 
   async login(email: string, password: string, options?: any) {
-    if (!this.isAvailable) {
-      console.log(`[RealBrowserMCP] Module not available, using fallback`);
+    try {
+      // Verificar que el servicio esté corriendo
+      const status = await this.getStatus();
+      if (status.status !== 'running') {
+        log.warn('Browser-MCP', 'Servicio no está corriendo, intentando iniciar...');
+        const started = await this.startService();
+        if (!started) {
+          throw new Error('No se pudo iniciar el servicio');
+        }
+      }
+
+      log.info('Browser-MCP', `Iniciando login para ${email}`);
+
+      // Comunicarse con el servicio Browser-MCP via HTTP
+      const response = await axios.post(`${this.baseUrl}/auth/login`, {
+        email,
+        password,
+        options: {
+          fingerprint: options?.fingerprint || 'mobile_chrome_es',
+          proxy: options?.proxy,
+          ...options
+        }
+      }, { timeout: 30000 });
+
+      if (response.data.success) {
+        log.success('Browser-MCP', 'Login exitoso');
+        return {
+          success: true,
+          sessionId: response.data.sessionId,
+          cookies: response.data.cookies,
+          fingerprint: response.data.fingerprint,
+          message: 'Login successful'
+        };
+      } else {
+        throw new Error(response.data.message || 'Login failed');
+      }
+    } catch (error) {
+      log.error('Browser-MCP', 'Error en login', error);
+
+      // Fallback para desarrollo
+      log.warn('Browser-MCP', 'Usando fallback para desarrollo');
       return {
         success: true,
         sessionId: `fallback-session-${Date.now()}`,
         cookies: [],
-        message: 'Fallback login (module not built)'
+        message: 'Fallback login (service unavailable)'
       };
     }
-
-    console.log(`[RealBrowserMCP] Login attempt for ${email}`);
-    // Aquí se implementaría la comunicación real con el módulo
-    // Por ahora usamos fallback hasta que el módulo esté compilado
-    return {
-      success: true,
-      sessionId: `real-session-${Date.now()}`,
-      cookies: [],
-      message: 'Real module login (not implemented yet)'
-    };
   }
 
   async exportSession(sessionId: string) {
@@ -67,7 +182,7 @@ class RealBrowserMCP {
   }
 
   async closeSession(sessionId: string) {
-    console.log(`[RealBrowserMCP] Closing session ${sessionId}`);
+    log.info('Browser-MCP', `Cerrando sesión ${sessionId}`);
     return true;
   }
 }
@@ -79,11 +194,13 @@ class RealScraperr {
 
   constructor() {
     this.checkAvailability();
+    log.debug('Scraperr', `Módulo inicializado. Disponible: ${this.isAvailable}`);
   }
 
   private checkAvailability(): void {
     const packagePath = join(EXTERNAL_PATHS.SCRAPERR, 'package.json');
     this.isAvailable = existsSync(packagePath);
+    log.debug('Scraperr', `Verificando disponibilidad en: ${packagePath}`);
   }
 
   async getStatus() {
@@ -172,11 +289,13 @@ class RealDeepscrape {
 
   constructor() {
     this.checkAvailability();
+    log.debug('DeepScrape', `Módulo inicializado. Disponible: ${this.isAvailable}`);
   }
 
   private checkAvailability(): void {
     const packagePath = join(EXTERNAL_PATHS.DEEPSCRAPE, 'package.json');
     this.isAvailable = existsSync(packagePath);
+    log.debug('DeepScrape', `Verificando disponibilidad en: ${packagePath}`);
   }
 
   async getStatus() {

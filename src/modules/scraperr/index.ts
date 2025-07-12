@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { deepscrape } from '../deepscrape';
+import { MinioStorage } from '../minio';
 
 export interface ScrapingOptions {
   waitForSelector?: string;
@@ -36,9 +37,11 @@ export class ScraperrHook {
   private config: ScraperrConfig;
   private isAvailable: boolean = false;
   private sessionCookies: any[] = [];
+  private minio: MinioStorage;
 
   constructor(config: ScraperrConfig) {
     this.config = config;
+    this.minio = new MinioStorage();
     this.checkAvailability();
   }
 
@@ -133,17 +136,59 @@ export class ScraperrHook {
         errorOutput += data.toString();
       });
 
-      childProcess.on('close', (code: number | null) => {
+      childProcess.on('close', async (code: number | null) => {
         if (code === 0) {
           try {
             const offers = JSON.parse(output);
             console.log(`✅ Scraping completado: ${offers.length} ofertas encontradas`);
+
+            // Guardar datos automáticamente en MinIO
+            try {
+              await this.minio.saveScaperrData(
+                {
+                  selectors: [
+                    '[data-component="ProductCard"]',
+                    '[data-component="ProductCardPrice"]',
+                    'img',
+                    'a'
+                  ],
+                  items: offers,
+                  itemCount: offers.length,
+                  options,
+                  timestamp: new Date()
+                },
+                url,
+                true
+              );
+            } catch (minioError) {
+              console.error('Error guardando datos de scraperr en MinIO:', minioError);
+            }
+
             resolve(offers);
           } catch (e) {
             console.log(' Error parsing scraperr output, usando fallback...');
             this.extractWithFallback(url, options).then(resolve).catch(reject);
           }
         } else {
+          // Guardar error en MinIO
+          try {
+            await this.minio.saveScaperrData(
+              {
+                selectors: [],
+                items: [],
+                itemCount: 0,
+                options,
+                error: errorOutput,
+                timestamp: new Date()
+              },
+              url,
+              false,
+              `Scraperr failed with code ${code}: ${errorOutput}`
+            );
+          } catch (minioError) {
+            console.error('Error guardando error de scraperr en MinIO:', minioError);
+          }
+
           console.log('🔄 Scraperr falló, usando fallback...');
           this.extractWithFallback(url, options).then(resolve).catch(reject);
         }

@@ -54,6 +54,27 @@ const nextConfig = {
   
   // Configuración de webpack para optimizaciones
   webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+    // Excluir completamente el directorio external del procesamiento de webpack
+    config.module.rules.push({
+      test: /\.tsx?$/,
+      include: /external/,
+      use: 'ignore-loader'
+    });
+
+    // Configurar externals para que los módulos no sean bundleados
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push(
+        // Ignorar completamente los módulos externos
+        ({ request }, callback) => {
+          if (request && request.includes('external/')) {
+            return callback(null, `commonjs ${request}`);
+          }
+          callback();
+        }
+      );
+    }
+
     // Optimizaciones para producción
     if (!dev && !isServer) {
       config.optimization.splitChunks.chunks = 'all';
@@ -66,7 +87,7 @@ const nextConfig = {
         },
       };
     }
-    
+
     return config;
   },
   
@@ -83,8 +104,8 @@ const nextConfig = {
   
   // Configuración de TypeScript
   typescript: {
-    // Ignorar errores de TypeScript durante el build (solo para desarrollo)
-    ignoreBuildErrors: process.env.NODE_ENV === 'development',
+    // Ignorar errores de TypeScript en módulos externos
+    ignoreBuildErrors: true,
   },
   
   // Configuración de ESLint

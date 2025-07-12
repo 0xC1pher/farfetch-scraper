@@ -24,6 +24,7 @@ const navigation = [
   { name: 'Logs', href: '/admin/logs', icon: FileText },
   { name: 'Cache', href: '/admin/cache', icon: Database },
   { name: 'Workflows', href: '/admin/workflows', icon: BarChart2 },
+  { name: 'Módulos', href: '/admin/modules', icon: Eye },
 ];
 
 export default function AdminLayout({ children, title = 'Panel de Administración', description = 'Sistema Mexa - Scraping Inteligente' }: AdminLayoutProps) {

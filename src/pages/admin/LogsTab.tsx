@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Download, Trash2, X } from 'lucide-react';
-import LogsCard from '../../components/Logs/LogsCard';
+import { useState, useCallback } from 'react';
+import { X, TestTube } from 'lucide-react';
+import RealTimeLogsCard from '../../components/Logs/RealTimeLogsCard';
 
 export interface LogEntry {
   timestamp: string;
@@ -10,63 +10,9 @@ export interface LogEntry {
 }
 
 export default function LogsTab() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showLogsCard, setShowLogsCard] = useState(true);
   const [isExpanded, setIsExpanded] = useState(false);
-
-  // Generate a random log message
-  const generateRandomLogMessage = useCallback((): string => {
-    const messages = [
-      'Scraping completado exitosamente - 25 ofertas encontradas',
-      'Rotación de proxy ejecutada correctamente',
-      'Usuario inició sesión en el bot',
-      'Workflow de autenticación completado',
-      'Error temporal de conexión - reintentando',
-      'Filtros aplicados: precio máximo €500',
-      'Sesión guardada en MinIO',
-      'Health check ejecutado - todos los servicios activos',
-      'Bot respondió a comando /ofertas',
-      'Proxy validado correctamente'
-    ];
-    return messages[Math.floor(Math.random() * messages.length)];
-  }, []);
-
-  // Simulate real-time logs
-  useEffect(() => {
-    if (!showLogsCard) return;
-    
-    const interval = setInterval(() => {
-      const newLog: LogEntry = {
-        timestamp: new Date().toISOString(),
-        level: ['info', 'warn', 'error', 'debug'][Math.floor(Math.random() * 4)] as any,
-        module: ['Orchestrator', 'Bot', 'API', 'Workflow', 'Proxy'][Math.floor(Math.random() * 5)],
-        message: generateRandomLogMessage()
-      };
-      
-      setLogs(prev => [...prev.slice(-199), newLog]); // Keep only the last 200 logs
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, [showLogsCard, generateRandomLogMessage]);
-
-  // This is kept for backward compatibility but not used in the UI directly
-  const filteredLogs = logs;
-
-  const exportLogs = useCallback(() => {
-    const dataStr = JSON.stringify(logs, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `logs-${new Date().toISOString()}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
-  }, [logs]);
-  
-  const clearLogs = useCallback(() => {
-    setLogs([]);
-  }, []);
+  const [isGeneratingLogs, setIsGeneratingLogs] = useState(false);
 
   const toggleLogsCard = useCallback(() => {
     setShowLogsCard(prev => !prev);
@@ -76,11 +22,42 @@ export default function LogsTab() {
     setIsExpanded(prev => !prev);
   }, []);
 
+  const generateTestLogs = useCallback(async () => {
+    setIsGeneratingLogs(true);
+    try {
+      const response = await fetch('/api/test-logs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error generando logs de prueba');
+      }
+
+      const result = await response.json();
+      console.log('Logs de prueba generados:', result);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setIsGeneratingLogs(false);
+    }
+  }, []);
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Monitoreo de Logs en Tiem Real</h2>
+        <h2 className="text-2xl font-bold">Monitoreo de Logs en Tiempo Real</h2>
         <div className="flex space-x-2">
+          <button
+            onClick={generateTestLogs}
+            disabled={isGeneratingLogs}
+            className="px-4 py-2 rounded-md text-sm font-medium flex items-center bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+          >
+            <TestTube className="mr-1 h-4 w-4" />
+            {isGeneratingLogs ? 'Generando...' : 'Generar Logs de Prueba'}
+          </button>
           <button
             onClick={toggleLogsCard}
             className={`px-4 py-2 rounded-md text-sm font-medium flex items-center ${showLogsCard ? 'bg-gray-200 text-gray-800' : 'bg-blue-600 text-white'}`}
@@ -91,32 +68,44 @@ export default function LogsTab() {
                 Ocultar Logs
               </>
             ) : (
-              'Mostrar Logs en Tiem Real'
+              'Mostrar Logs en Tiempo Real'
             )}
           </button>
         </div>
       </div>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-lg p-4">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Instrucciones</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Sistema de Logs en Tiempo Real</h3>
         <div className="prose max-w-none">
-          <p>Los logs del sistema se muestran en una ventana flotante en la esquina inferior derecha.</p>
+          <p>El nuevo sistema de logs muestra información en tiempo real de todos los módulos del sistema.</p>
           <ul className="list-disc pl-5 mt-2 space-y-1">
-            <li>Haz clic en <strong>Mostrar Logs</strong> para abrir el panel de logs.</li>
-            <li>Usa el campo de búsqueda para filtrar logs por contenido o módulo.</li>
-            <li>Selecciona un nivel específico de logs para filtrar (todos, errores, advertencias, etc.).</li>
-            <li>Haz clic en el ícono de expansión para ver los logs en pantalla completa.</li>
-            <li>Usa los botones para exportar o limpiar los logs según sea necesario.</li>
+            <li><strong>Streaming en tiempo real</strong>: Los logs se actualizan automáticamente usando Server-Sent Events (SSE)</li>
+            <li><strong>Filtros avanzados</strong>: Filtra por módulo, nivel de log, o busca texto específico</li>
+            <li><strong>Control de conexión</strong>: Pausa/reanuda el stream según necesites</li>
+            <li><strong>Auto-scroll inteligente</strong>: Se desplaza automáticamente a menos que hayas hecho scroll hacia arriba</li>
+            <li><strong>Exportación</strong>: Descarga los logs en formato JSON para análisis posterior</li>
+            <li><strong>Detalles expandibles</strong>: Haz clic en "Ver detalles" para información adicional</li>
           </ul>
+
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <h4 className="font-semibold text-blue-900">Módulos monitoreados:</h4>
+            <div className="grid grid-cols-2 gap-2 mt-2 text-sm text-blue-800">
+              <div>• Orchestrator</div>
+              <div>• Browser-MCP</div>
+              <div>• Scraperr</div>
+              <div>• DeepScrape</div>
+              <div>• MinIO</div>
+              <div>• Telegram Bot</div>
+              <div>• API</div>
+              <div>• Workflow Engine</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Floating Logs Card */}
+      {/* Floating Real-Time Logs Card */}
       {showLogsCard && (
-        <LogsCard 
-          logs={logs}
-          onClearLogs={clearLogs}
-          onExportLogs={exportLogs}
+        <RealTimeLogsCard
           onClose={toggleLogsCard}
           onToggleExpand={toggleExpand}
           isExpanded={isExpanded}

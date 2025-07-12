@@ -21,18 +21,9 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "browser-mcp": ["./external/browser-mcp"],
-      "deepscrape": ["./external/deepscrape"],
-      "scraperr": ["./external/scraperr"]
-    },
-    "typeRoots": [
-      "./node_modules/@types",
-      "./external/browser-mcp/types",
-      "./external/deepscrape/types",
-      "./external/scraperr/types"
-    ]
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules", "external/**/*", "dist/**/*"]
 }

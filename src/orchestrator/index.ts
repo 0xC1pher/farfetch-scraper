@@ -1,7 +1,8 @@
 import { SessionData, ScrapingData } from '../modules/minio/index';
 import { Offer } from './types';
-import { loadBrowserMCP, loadScraperr } from '../utils/moduleLoader';
+import { loadBrowserMCP, loadScraperr, loadDeepScrape } from '../utils/moduleLoader';
 import { minioStorage } from '../modules/minio/index';
+import { log } from '../services/logger';
 
 type OrchestratorOptions = {
   sessionId?: string;
@@ -18,26 +19,41 @@ type OrchestratorOptions = {
 interface IOrchestratorDependencies {
   browserMCP: any; // Reemplazar con el tipo correcto
   scraperr: any;    // Reemplazar con el tipo correcto
+  deepscrape: any;  // Reemplazar con el tipo correcto
 }
 
 export class Orchestrator {
   private browserMCP: any;
   private minio = minioStorage;
   private scraperr: any;
+  private deepscrape: any;
 
   /**
    * Método de fábrica para crear una instancia del orquestador
    */
   static async create(): Promise<Orchestrator> {
     try {
-      const [browserMCP, scraperr] = await Promise.all([
-        loadBrowserMCP(),
-        loadScraperr()
+      log.info('Orchestrator', 'Iniciando carga de módulos...');
+
+      const [browserMCP, scraperr, deepscrape] = await Promise.all([
+        loadBrowserMCP().then(module => {
+          log.success('Orchestrator', 'Módulo Browser-MCP cargado exitosamente');
+          return module;
+        }),
+        loadScraperr().then(module => {
+          log.success('Orchestrator', 'Módulo Scraperr cargado exitosamente');
+          return module;
+        }),
+        loadDeepScrape().then(module => {
+          log.success('Orchestrator', 'Módulo DeepScrape cargado exitosamente');
+          return module;
+        })
       ]);
 
-      return new Orchestrator({ browserMCP, scraperr });
+      log.success('Orchestrator', 'Todos los módulos cargados correctamente');
+      return new Orchestrator({ browserMCP, scraperr, deepscrape });
     } catch (error) {
-      console.error('Error al inicializar el orquestador:', error);
+      log.error('Orchestrator', 'Error al inicializar el orquestador', error);
       throw new Error('No se pudieron cargar los módulos necesarios');
     }
   }
@@ -47,6 +63,7 @@ export class Orchestrator {
     if (deps) {
       this.browserMCP = deps.browserMCP;
       this.scraperr = deps.scraperr;
+      this.deepscrape = deps.deepscrape;
     }
     // Si no se proporcionan deps, se inicializarán como null y se cargarán bajo demanda
   }
@@ -55,14 +72,16 @@ export class Orchestrator {
    * Inicializar módulos bajo demanda
    */
   private async ensureModulesLoaded() {
-    if (!this.browserMCP || !this.scraperr) {
+    if (!this.browserMCP || !this.scraperr || !this.deepscrape) {
       try {
-        const [browserMCP, scraperr] = await Promise.all([
+        const [browserMCP, scraperr, deepscrape] = await Promise.all([
           loadBrowserMCP(),
-          loadScraperr()
+          loadScraperr(),
+          loadDeepScrape()
         ]);
         this.browserMCP = browserMCP;
         this.scraperr = scraperr;
+        this.deepscrape = deepscrape;
       } catch (error) {
         console.error('Error al cargar módulos:', error);
         throw new Error('No se pudieron cargar los módulos necesarios');
@@ -210,11 +229,13 @@ export class Orchestrator {
     // 3. Fallback a deepscrape si todo falla
     this.log('🤖 Fallback a deepscrape...');
     try {
-      const offers = await this.scraperr.extractWithFallback(scrapeUrl, { 
-        useSession: !!session, 
-        sessionId,
+      const result = await this.deepscrape.resolve({
+        pageUrl: scrapeUrl,
+        elements: ['[data-testid="product-card"]', '.product-item', '.offer-card'],
         timeout: 30000
       });
+
+      const offers = result.data || [];
       
       if (offers.length > 0) {
         this.log(`✅ Deepscrape exitoso: ${offers.length} ofertas encontradas`);
@@ -264,9 +285,19 @@ export class Orchestrator {
   /**
    * Utilidad para logging centralizado
    */
-  private log(msg: string) {
-    // Aquí puedes integrar winston, pino, Sentry, etc.
-    console.log(`[Orchestrator] ${new Date().toISOString()} - ${msg}`);
+  private log(msg: string, level: 'info' | 'warn' | 'error' | 'debug' | 'success' = 'info') {
+    // Determinar el nivel basado en el contenido del mensaje
+    if (msg.includes('❌') || msg.includes('Error') || msg.includes('fallido')) {
+      level = 'error';
+    } else if (msg.includes('⚠️') || msg.includes('Warning')) {
+      level = 'warn';
+    } else if (msg.includes('✅') || msg.includes('exitoso') || msg.includes('guardado')) {
+      level = 'success';
+    } else if (msg.includes('🔍') || msg.includes('Debug')) {
+      level = 'debug';
+    }
+
+    log[level]('Orchestrator', msg);
   }
 
   /**
