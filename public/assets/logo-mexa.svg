@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="40" viewBox="0 0 120 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradiente de fondo -->
+  <defs>
+    <linearGradient id="mexaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8f9fa;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Fondo con bordes redondeados -->
+  <rect x="2" y="2" width="116" height="36" rx="18" ry="18" fill="url(#mexaGradient)" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  
+  <!-- Icono decorativo (hexágono estilizado) -->
+  <g transform="translate(12, 8)">
+    <polygon points="12,4 20,8 20,16 12,20 4,16 4,8" fill="rgba(255,255,255,0.9)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+    <polygon points="12,6 18,9 18,15 12,18 6,15 6,9" fill="rgba(255,255,255,0.7)"/>
+    <circle cx="12" cy="12" r="3" fill="url(#mexaGradient)"/>
+  </g>
+  
+  <!-- Texto MeXa -->
+  <text x="40" y="26" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="url(#textGradient)" filter="url(#glow)">
+    Me<tspan fill="#f093fb">X</tspan>a
+  </text>
+  
+  <!-- Punto decorativo -->
+  <circle cx="108" cy="20" r="2" fill="rgba(255,255,255,0.8)"/>
+</svg>

@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { workflowEngine } from '../../../workflow-engine';
+import { getWorkflowEngine } from '../../../workflow-engine';
 import { withMiddleware, rateLimit, validateSchema, requestLogger, cors } from '../../../middleware/api-middleware';
 
 interface ExecuteWorkflowRequest {
@@ -49,7 +49,8 @@ async function executeWorkflowHandler(
     console.log(`[API] Starting workflow execution: ${workflowName}`);
 
     // Ejecutar workflow
-    const execution = await workflowEngine.executeWorkflow(workflowName, params);
+    const engine = await getWorkflowEngine();
+    const execution = await engine.executeWorkflow(workflowName, params);
 
     return res.status(200).json({
       success: true,

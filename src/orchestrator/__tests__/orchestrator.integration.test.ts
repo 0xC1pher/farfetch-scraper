@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Orchestrator from '../index';
+import { Orchestrator } from '../orchestrator';
 import { existsSync } from 'fs';
 import { MinioStorage } from '../../modules/minio/index';
 

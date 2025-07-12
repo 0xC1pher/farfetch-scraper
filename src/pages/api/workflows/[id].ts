@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { workflowEngine } from '../../../workflow-engine';
+import { getWorkflowEngine } from '../../../workflow-engine';
 import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware';
 
 interface WorkflowStatusResponse {
@@ -59,7 +59,8 @@ async function workflowStatusHandler(
 
 async function getWorkflowStatus(executionId: string, res: NextApiResponse<WorkflowStatusResponse>) {
   try {
-    const execution = workflowEngine.getExecution(executionId);
+    const engine = await getWorkflowEngine();
+    const execution = engine.getExecution(executionId);
     
     if (!execution) {
       return res.status(404).json({
@@ -116,7 +117,8 @@ async function getWorkflowStatus(executionId: string, res: NextApiResponse<Workf
 
 async function cancelWorkflow(executionId: string, res: NextApiResponse<WorkflowStatusResponse>) {
   try {
-    const cancelled = workflowEngine.cancelExecution(executionId);
+    const engine = await getWorkflowEngine();
+    const cancelled = engine.cancelExecution(executionId);
     
     if (!cancelled) {
       return res.status(404).json({

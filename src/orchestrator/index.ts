@@ -1,6 +1,7 @@
-import { browserMCP } from '../modules/browser-mcp/index';
-import { minioStorage, SessionData } from '../modules/minio/index';
-import { scraperr, Offer } from '../modules/scraperr/index';
+import { SessionData, ScrapingData } from '../modules/minio/index';
+import { Offer } from './types';
+import { loadBrowserMCP, loadScraperr } from '../utils/moduleLoader';
+import { minioStorage } from '../modules/minio/index';
 
 type OrchestratorOptions = {
   sessionId?: string;
@@ -14,19 +15,66 @@ type OrchestratorOptions = {
   maxRetries?: number;
 };
 
-export class Orchestrator {
-  private browserMCP = browserMCP;
-  private minio = minioStorage;
-  private scraperr = scraperr;
+interface IOrchestratorDependencies {
+  browserMCP: any; // Reemplazar con el tipo correcto
+  scraperr: any;    // Reemplazar con el tipo correcto
+}
 
-  constructor() {
-    // Los hooks ya están instanciados en sus módulos respectivos
+export class Orchestrator {
+  private browserMCP: any;
+  private minio = minioStorage;
+  private scraperr: any;
+
+  /**
+   * Método de fábrica para crear una instancia del orquestador
+   */
+  static async create(): Promise<Orchestrator> {
+    try {
+      const [browserMCP, scraperr] = await Promise.all([
+        loadBrowserMCP(),
+        loadScraperr()
+      ]);
+
+      return new Orchestrator({ browserMCP, scraperr });
+    } catch (error) {
+      console.error('Error al inicializar el orquestador:', error);
+      throw new Error('No se pudieron cargar los módulos necesarios');
+    }
+  }
+
+  // Constructor público para compatibilidad
+  constructor(deps?: IOrchestratorDependencies) {
+    if (deps) {
+      this.browserMCP = deps.browserMCP;
+      this.scraperr = deps.scraperr;
+    }
+    // Si no se proporcionan deps, se inicializarán como null y se cargarán bajo demanda
+  }
+
+  /**
+   * Inicializar módulos bajo demanda
+   */
+  private async ensureModulesLoaded() {
+    if (!this.browserMCP || !this.scraperr) {
+      try {
+        const [browserMCP, scraperr] = await Promise.all([
+          loadBrowserMCP(),
+          loadScraperr()
+        ]);
+        this.browserMCP = browserMCP;
+        this.scraperr = scraperr;
+      } catch (error) {
+        console.error('Error al cargar módulos:', error);
+        throw new Error('No se pudieron cargar los módulos necesarios');
+      }
+    }
   }
 
   /**
    * Flujo robusto de login y persistencia de sesión
    */
   async ensureSession(options: OrchestratorOptions): Promise<SessionData> {
+    await this.ensureModulesLoaded();
     const {
       sessionId = '',
       email,
@@ -90,6 +138,7 @@ export class Orchestrator {
    * Flujo robusto de scraping con manejo de sesión y fallback
    */
   async scrapeWithSession(options: OrchestratorOptions): Promise<Offer[]> {
+    await this.ensureModulesLoaded();
     const {
       sessionId = '',
       scrapeUrl = '',
@@ -133,7 +182,7 @@ export class Orchestrator {
 
           // Guardar datos de scraping en MinIO para la API
           try {
-            await this.storage.saveScrapingData({
+            await this.minio.saveScrapingData({
               url: scrapeUrl,
               selectors: [], // Los selectores se manejan internamente en scraperr
               data: { offers, timestamp: new Date(), totalFound: offers.length },
@@ -172,7 +221,7 @@ export class Orchestrator {
 
         // Guardar datos de scraping en MinIO para la API
         try {
-          await this.storage.saveScrapingData({
+          await this.minio.saveScrapingData({
             url: scrapeUrl,
             selectors: [], // Los selectores se manejan internamente en deepscrape
             data: { offers, timestamp: new Date(), totalFound: offers.length, source: 'deepscrape' },
@@ -231,50 +280,74 @@ export class Orchestrator {
    * Obtener estadísticas del sistema
    */
   async getStats() {
-    const browserStatus = await this.browserMCP.getStatus();
-    const scraperrStats = await this.scraperr.getStatsAsync();
-    const minioStatus = await this.minio.getStatus();
-    
-    return {
-      browserMCP: browserStatus,
-      scraperr: scraperrStats,
-      minio: minioStatus,
-      timestamp: new Date()
-    };
+    try {
+      const [browserStatus, scraperrStats, minioStatus] = await Promise.all([
+        this.browserMCP.getStatus(),
+        this.scraperr.getStatsAsync(),
+        this.minio.getStatus()
+      ]);
+
+      return {
+        browserMCP: browserStatus,
+        scraperr: scraperrStats,
+        minio: minioStatus,
+        timestamp: new Date()
+      };
+    } catch (error) {
+      this.log(`❌ Error obteniendo estadísticas: ${error}`);
+      throw error;
+    }
   }
+
+  // Método para cerrar sesión
+  async logout() {
+    try {
+      // Implementar lógica de cierre de sesión si es necesario
+      this.log('Cerrando sesión...');
+      // Ejemplo: await this.browserMCP.logout();
+    } catch (error) {
+      this.log(`⚠️ Error al cerrar sesión: ${error}`);
+      throw error;
+    }
+  }
+
 }
 
 // Ejemplo de uso (puedes mover esto a un handler o script aparte)
-async function main() {
-  const orchestrator = new Orchestrator();
-
+async function exampleUsage() {
   try {
-    // 1. Login y persistencia de sesión
+    const orchestrator = await Orchestrator.create();
+    
+    // Ejemplo: Iniciar sesión
     const session = await orchestrator.ensureSession({
-      sessionId: 'user1-session',
-      email: process.env.FF_EMAIL,
-      password: process.env.FF_PASSWORD,
-      fingerprintLevel: 'medium',
-      persistSession: true,
-      loginIfNeeded: true
+      email: process.env.FF_EMAIL || 'usuario@ejemplo.com',
+      password: process.env.FF_PASSWORD || 'contraseña',
+      loginIfNeeded: true,
+      fingerprintLevel: 'medium'
     });
-
-    // 2. Scraping robusto con fallback
-    const offers = await orchestrator.scrapeWithSession({
+    
+    console.log('Sesión iniciada:', session);
+    
+    // Ejemplo: Ejecutar scraping
+    const results = await orchestrator.scrapeWithSession({
       sessionId: session.sessionId,
-      scrapeUrl: 'https://www.farfetch.com/shopping/men/shoes-2/items.aspx'
+      scrapeUrl: 'https://www.farfetch.com/shopping/men/shoes-2/items.aspx',
+      maxRetries: 3
     });
-
-    console.log('Ofertas encontradas:', offers);
+    
+    console.log('Resultados del scraping:', results);
+    
+    // Cerrar sesión
+    await orchestrator.logout();
   } catch (error) {
-    console.error('Error en orquestador:', error);
+    console.error('Error en el flujo principal:', error);
     process.exit(1);
   }
 }
 
-// Si quieres que se ejecute como script
+// Si se ejecuta directamente como script
 if (require.main === module) {
-  main().catch((err) => {
+  exampleUsage().catch((err) => {
     console.error('Error en orquestador:', err);
     process.exit(1);
   });

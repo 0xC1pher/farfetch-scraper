@@ -336,6 +336,75 @@ export class MinioStorage {
       });
     });
   }
+
+  /**
+   * Guardar datos genéricos
+   */
+  async saveData(key: string, data: any): Promise<void> {
+    if (!this.isAvailable) {
+      throw new Error('MinIO not available');
+    }
+
+    try {
+      const jsonData = JSON.stringify(data, null, 2);
+
+      await this.client.putObject(
+        this.bucket,
+        key,
+        Buffer.from(jsonData),
+        jsonData.length,
+        {
+          'Content-Type': 'application/json'
+        }
+      );
+
+      console.log(`✅ Datos guardados: ${key}`);
+    } catch (error) {
+      console.error('❌ Error guardando datos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cargar datos genéricos
+   */
+  async loadData(key: string): Promise<any> {
+    if (!this.isAvailable) {
+      throw new Error('MinIO not available');
+    }
+
+    try {
+      const stream = await this.client.getObject(this.bucket, key);
+      const data = await this.streamToBuffer(stream);
+      return JSON.parse(data.toString());
+    } catch (error) {
+      console.error(`❌ Error cargando datos: ${key}`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Listar objetos
+   */
+  async listObjects(prefix: string = ''): Promise<any[]> {
+    if (!this.isAvailable) {
+      return [];
+    }
+
+    try {
+      const objects = await this.client.listObjects(this.bucket, prefix, true);
+      const results: any[] = [];
+
+      for await (const obj of objects) {
+        results.push(obj);
+      }
+
+      return results;
+    } catch (error) {
+      console.error(`❌ Error listando objetos: ${prefix}`, error);
+      return [];
+    }
+  }
 }
 
 // Exportar instancia por defecto
