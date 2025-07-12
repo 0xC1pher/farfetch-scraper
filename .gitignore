@@ -100,3 +100,25 @@ jspm_packages/
 #!external/scraperr/.gitkeep
 #external/deepscrape/*
 #!external/deepscrape/.gitkeep
+
+# Archivos binarios grandes
+minio
+*.bin
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm
+
+# Archivos de más de 100MB
+*.zip
+*.tar.gz
+*.tar.bz2
+*.7z
+*.rar
+
+# Datos temporales y caché
+data/
+cache/
+tmp/
+temp/
