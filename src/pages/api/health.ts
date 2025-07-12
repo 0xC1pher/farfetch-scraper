@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { minioStorage } from '../../modules/minio';
 import { mexaCache } from '../../cache';
-import { browserMCP } from '../../modules/browser-mcp';
-import { scraperr } from '../../modules/scraperr';
+import { loadBrowserMCP, loadScraperr } from '../../utils/moduleLoader';
 
 interface HealthResponse {
   success: boolean;
@@ -157,32 +156,38 @@ async function checkMinioHealth() {
 
 async function checkBrowserMCPHealth() {
   try {
+    const browserMCP = await loadBrowserMCP();
     const status = await browserMCP.getStatus();
     return {
       status: status.available ? 'up' as const : 'down' as const,
       available: status.available,
-      version: status.version
+      version: (status as any).version || 'unknown'
     };
   } catch (error) {
+    console.error('BrowserMCP health check error:', error);
     return {
       status: 'down' as const,
-      available: false
+      available: false,
+      version: 'error'
     };
   }
 }
 
 async function checkScraperrHealth() {
   try {
+    const scraperr = await loadScraperr();
     const status = await scraperr.getStatus();
     return {
       status: status.available ? 'up' as const : 'down' as const,
       available: status.available,
-      version: status.version
+      version: (status as any).version || 'unknown'
     };
   } catch (error) {
+    console.error('Scraperr health check error:', error);
     return {
       status: 'down' as const,
-      available: false
+      available: false,
+      version: 'error'
     };
   }
 }

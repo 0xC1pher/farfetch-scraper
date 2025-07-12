@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="375" height="80" viewBox="0 0 375 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradientes -->
+  <defs>
+    <linearGradient id="bannerGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.95" />
+      <stop offset="30%" style="stop-color:#764ba2;stop-opacity:0.95" />
+      <stop offset="70%" style="stop-color:#f093fb;stop-opacity:0.95" />
+      <stop offset="100%" style="stop-color:#667eea;stop-opacity:0.95" />
+    </linearGradient>
+    <linearGradient id="bannerTextGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f8f9fa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="glowEffect" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
+    </radialGradient>
+    <filter id="bannerGlow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Fondo principal -->
+  <rect width="375" height="80" fill="url(#bannerGradient)"/>
+  
+  <!-- Efecto de brillo sutil -->
+  <rect width="375" height="80" fill="url(#glowEffect)"/>
+  
+  <!-- Elementos decorativos de fondo -->
+  <g opacity="0.1">
+    <!-- Círculos decorativos -->
+    <circle cx="50" cy="20" r="15" fill="white"/>
+    <circle cx="325" cy="60" r="20" fill="white"/>
+    <circle cx="300" cy="15" r="8" fill="white"/>
+    
+    <!-- Formas geométricas -->
+    <polygon points="20,60 35,45 35,75" fill="white"/>
+    <polygon points="340,25 355,10 370,25 355,40" fill="white"/>
+  </g>
+  
+  <!-- Logo principal centrado -->
+  <g transform="translate(187.5, 40)">
+    <!-- Icono hexagonal -->
+    <g transform="translate(-25, -12)">
+      <polygon points="12,4 20,8 20,16 12,20 4,16 4,8" fill="rgba(255,255,255,0.95)" stroke="rgba(255,255,255,0.5)" stroke-width="1"/>
+      <polygon points="12,6 18,9 18,15 12,18 6,15 6,9" fill="rgba(255,255,255,0.8)"/>
+      <circle cx="12" cy="12" r="3" fill="#f093fb"/>
+    </g>
+    
+    <!-- Texto MeXa -->
+    <text x="0" y="8" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="url(#bannerTextGradient)" filter="url(#bannerGlow)">
+      Me<tspan fill="#f093fb">X</tspan>a
+    </text>
+  </g>
+  
+  <!-- Subtítulo -->
+  <text x="187.5" y="60" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="normal" fill="rgba(255,255,255,0.9)">
+    Ofertas Exclusivas
+  </text>
+  
+  <!-- Elementos decorativos laterales -->
+  <g opacity="0.6">
+    <!-- Lado izquierdo -->
+    <circle cx="30" cy="40" r="2" fill="white"/>
+    <circle cx="25" cy="35" r="1.5" fill="white"/>
+    <circle cx="35" cy="45" r="1" fill="white"/>
+    
+    <!-- Lado derecho -->
+    <circle cx="345" cy="40" r="2" fill="white"/>
+    <circle cx="350" cy="35" r="1.5" fill="white"/>
+    <circle cx="340" cy="45" r="1" fill="white"/>
+  </g>
+  
+  <!-- Borde inferior sutil -->
+  <rect x="0" y="78" width="375" height="2" fill="rgba(255,255,255,0.2)"/>
+</svg>

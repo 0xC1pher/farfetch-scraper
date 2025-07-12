@@ -1,7 +1,4 @@
-/* Importar Tailwind CSS directamente desde CDN para solucionar problemas de configuración */
-@import url('https://cdn.tailwindcss.com');
-
-/* Fuentes personalizadas */
+/* Fuentes personalizadas locales */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
 
@@ -12,12 +9,9 @@
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
-  --color-glass-bg: rgba(255, 255, 255, 0.1);
-  --color-glass-border: rgba(255, 255, 255, 0.2);
-  --backdrop-blur: blur(16px);
 }
 
-/* Estilos base */
+/* Reset y estilos base */
 * {
   box-sizing: border-box;
   padding: 0;
@@ -27,184 +21,74 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
+  min-height: 100vh;
   font-family: 'Inter', sans-serif;
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: #f4f8fb;
+  color: #222;
 }
 
 a {
-  color: inherit;
+  color: var(--color-primary);
   text-decoration: none;
 }
 
-/* Efectos glassmorphism personalizados */
-.glass {
-  background: var(--color-glass-bg);
-  backdrop-filter: var(--backdrop-blur);
-  border: 1px solid var(--color-glass-border);
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  margin-bottom: 0.5em;
 }
 
-.glass-card {
-  @apply glass rounded-xl shadow-glass;
+input, button, textarea, select {
+  font-family: inherit;
+  font-size: 1em;
+  margin-bottom: 0.5em;
 }
 
-.glass-button {
-  @apply glass rounded-lg px-4 py-2 transition-all duration-200 hover:bg-white/20;
+button {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6em 1.2em;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 
-/* Animaciones personalizadas */
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-in-out;
+button:hover {
+  background: var(--color-secondary);
 }
 
-.animate-slide-up {
-  animation: slideUp 0.3s ease-out;
+.container {
+  max-width: 900px;
+  margin: 2em auto;
+  padding: 1em;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px #0001;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.grid {
+  display: flex;
+  gap: 1.5em;
+  margin-bottom: 2em;
+  flex-wrap: wrap;
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
+.card {
+  flex: 1 1 250px;
+  background: #f9fbfd;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px #0001;
+  padding: 1.2em 1.5em;
+  margin-bottom: 1.5em;
 }
 
-/* Estilos para scrollbar personalizado */
-::-webkit-scrollbar {
-  width: 8px;
+h1 {
+  font-size: 2.2em;
+  margin-bottom: 0.2em;
 }
 
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-/* Estilos para elementos de formulario */
-.form-input {
-  @apply w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent backdrop-blur-md;
-}
-
-.form-button {
-  @apply px-6 py-2 bg-gradient-to-r from-primary-500 to-secondary-500 text-white font-medium rounded-lg hover:from-primary-600 hover:to-secondary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200;
-}
-
-/* Estilos para tarjetas de estado */
-.status-card {
-  @apply glass-card p-6 transition-all duration-200 hover:shadow-xl hover:scale-105;
-}
-
-.status-card.success {
-  @apply border-success-400/30 bg-success-500/10;
-}
-
-.status-card.warning {
-  @apply border-warning-400/30 bg-warning-500/10;
-}
-
-.status-card.error {
-  @apply border-error-400/30 bg-error-500/10;
-}
-
-/* Estilos para indicadores de estado */
-.status-indicator {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-}
-
-.status-indicator.online {
-  @apply bg-success-100 text-success-800;
-}
-
-.status-indicator.offline {
-  @apply bg-error-100 text-error-800;
-}
-
-.status-indicator.warning {
-  @apply bg-warning-100 text-warning-800;
-}
-
-/* Estilos para botones de acción */
-.action-button {
-  @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-200;
-}
-
-.action-button.secondary {
-  @apply bg-gray-600 hover:bg-gray-700 focus:ring-gray-500;
-}
-
-.action-button.danger {
-  @apply bg-error-600 hover:bg-error-700 focus:ring-error-500;
-}
-
-/* Estilos para tablas */
-.data-table {
-  @apply min-w-full divide-y divide-gray-700;
-}
-
-.data-table th {
-  @apply px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider;
-}
-
-.data-table td {
-  @apply px-6 py-4 whitespace-nowrap text-sm text-gray-300;
-}
-
-/* Estilos para modales */
-.modal-overlay {
-  @apply fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50;
-}
-
-.modal-content {
-  @apply glass-card max-w-md mx-auto mt-20 p-6;
-}
-
-/* Utilidades adicionales */
-.text-gradient {
-  @apply bg-gradient-to-r from-primary-400 to-secondary-400 bg-clip-text text-transparent;
-}
-
-.border-gradient {
-  background: linear-gradient(var(--color-glass-bg), var(--color-glass-bg)) padding-box,
-              linear-gradient(45deg, var(--color-primary), var(--color-secondary)) border-box;
-  border: 1px solid transparent;
-}
-
-/* Responsive design helpers */
-@media (max-width: 640px) {
-  .glass-card {
-    @apply mx-4;
-  }
-  
-  .status-card {
-    @apply p-4;
-  }
+.subtitle {
+  color: #666;
+  margin-bottom: 2em;
 }

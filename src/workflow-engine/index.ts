@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import yaml from 'js-yaml';
-import Orchestrator from '../orchestrator/index';
+import { Orchestrator } from '../orchestrator/orchestrator';
 import { ProxyManager } from '../proxy-manager/index';
 
 export interface WorkflowStep {
@@ -42,12 +42,28 @@ export class WorkflowEngine {
   private proxyManager: ProxyManager;
   private executions: Map<string, WorkflowExecution> = new Map();
 
-  constructor() {
-    this.orchestrator = new Orchestrator();
+  private constructor() {
+    // Inicializar el ProxyManager con opciones válidas
     this.proxyManager = new ProxyManager({
       rotationStrategy: 'round-robin',
-      providers: []
+      maxRetries: 3,
+      requestTimeout: 30000,
+      maxConcurrentRequests: 10,
+      blacklist: []
     });
+    
+    // Inicializamos el orquestador como null por ahora
+    this.orchestrator = null as unknown as Orchestrator;
+  }
+
+  /**
+   * Método de fábrica para crear una instancia del motor de workflows
+   */
+  static async create(): Promise<WorkflowEngine> {
+    const engine = new WorkflowEngine();
+    // Inicializar el orquestador de forma asíncrona
+    engine.orchestrator = await Orchestrator.create();
+    return engine;
   }
 
   /**
@@ -375,5 +391,36 @@ export class WorkflowEngine {
   }
 }
 
-// Exportar instancia singleton
-export const workflowEngine = new WorkflowEngine();
+// Variable para almacenar la instancia singleton
+let workflowEngineInstance: WorkflowEngine | null = null;
+
+/**
+ * Obtener la instancia singleton del motor de workflows
+ */
+export async function getWorkflowEngine(): Promise<WorkflowEngine> {
+  if (!workflowEngineInstance) {
+    workflowEngineInstance = await WorkflowEngine.create();
+  }
+  return workflowEngineInstance;
+}
+
+// Para compatibilidad con código existente
+// Nota: Las importaciones que usen workflowEngine directamente necesitarán ser actualizadas
+// para usar getWorkflowEngine() de forma asíncrona
+export const workflowEngine = {
+  // Métodos que necesiten ser accesibles estáticamente
+  // Nota: Los métodos que requieran el orquestador necesitarán ser actualizados
+  // para usar getWorkflowEngine()
+  getExecution: (executionId: string) => {
+    if (!workflowEngineInstance) {
+      throw new Error('WorkflowEngine no ha sido inicializado. Usa getWorkflowEngine() primero.');
+    }
+    return workflowEngineInstance.getExecution(executionId);
+  },
+  listExecutions: () => {
+    if (!workflowEngineInstance) {
+      throw new Error('WorkflowEngine no ha sido inicializado. Usa getWorkflowEngine() primero.');
+    }
+    return workflowEngineInstance.listExecutions();
+  }
+} as const;

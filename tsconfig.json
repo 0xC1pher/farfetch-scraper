@@ -21,8 +21,17 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
-    }
+      "@/*": ["./src/*"],
+      "browser-mcp": ["./external/browser-mcp"],
+      "deepscrape": ["./external/deepscrape"],
+      "scraperr": ["./external/scraperr"]
+    },
+    "typeRoots": [
+      "./node_modules/@types",
+      "./external/browser-mcp/types",
+      "./external/deepscrape/types",
+      "./external/scraperr/types"
+    ]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import Orchestrator from '../index';
+import { Orchestrator } from '../orchestrator';
 import { browserMCP } from '../../modules/browser-mcp/index';
 import { minioStorage, SessionData } from '../../modules/minio/index';
 import { scraperr } from '../../modules/scraperr/index';

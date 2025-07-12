@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import Orchestrator from '../../../orchestrator';
+import { Orchestrator } from '../../../orchestrator/orchestrator';
 
 interface ScrapingRequest {
   sessionId: string;

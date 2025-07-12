@@ -1,10 +1,17 @@
 import type { AppProps } from 'next/app';
 import Head from 'next/head';
 import '../styles/globals.css';
+import { useRouter } from 'next/router';
+import '../styles/admin.css';
 
 export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+  const isAdmin = router.pathname.startsWith('/admin');
+  // Only apply admin styles on admin routes
+  const className = isAdmin ? 'admin-styles' : '';
+
   return (
-    <>
+    <div className={className}>
       <Head>
         <title>Sistema Mexa - Panel de Administración</title>
         <meta name="description" content="Sistema de scraping inteligente con orquestación avanzada" />
@@ -43,6 +50,6 @@ export default function App({ Component, pageProps }: AppProps) {
       </Head>
       
       <Component {...pageProps} />
-    </>
+    </div>
   );
 }

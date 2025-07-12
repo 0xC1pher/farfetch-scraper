@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { workflowEngine } from '../../../workflow-engine';
+import { getWorkflowEngine } from '../../../workflow-engine';
 import { withMiddleware, requestLogger, cors } from '../../../middleware/api-middleware';
 import { readdirSync } from 'fs';
 import { join } from 'path';
@@ -38,7 +38,8 @@ async function workflowListHandler(
     const availableWorkflows = getAvailableWorkflows();
     
     // Obtener ejecuciones
-    const executions = workflowEngine.listExecutions();
+    const engine = await getWorkflowEngine();
+    const executions = engine.listExecutions();
     
     // Preparar datos de ejecuciones (sin información sensible)
     const executionSummaries = executions.map(execution => {

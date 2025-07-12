@@ -11,24 +11,24 @@ const PROJECT_ROOT = path.resolve(__dirname, '../..');
 export const MODULE_PATHS = {
   // Ruta base de los módulos
   BASE: path.join(PROJECT_ROOT, 'src', 'modules'),
-  
+
   // Rutas específicas de cada módulo
-  BROWSER_MCP: {
+  'BROWSER-MCP': {
     PATH: path.join(PROJECT_ROOT, 'src', 'modules', 'browser-mcp'),
-    REPO: 'https://github.com/hangwin/mcp-chrome',
-    ENTRY_POINT: 'src/index' // Ajustar según la estructura del repo
+    ENTRY_POINT: 'index',
+    REPO: 'https://github.com/modelcontextprotocol/servers'
   },
-  
+
   SCRAPERR: {
     PATH: path.join(PROJECT_ROOT, 'src', 'modules', 'scraperr'),
-    REPO: 'https://github.com/jaypyles/Scraperr',
-    ENTRY_POINT: 'dist/index'
+    ENTRY_POINT: 'index',
+    REPO: 'https://github.com/jaypyles/Scraperr'
   },
-  
+
   DEEPSCRAPE: {
     PATH: path.join(PROJECT_ROOT, 'src', 'modules', 'deepscrape'),
-    REPO: 'https://github.com/stretchcloud/deepscrape',
-    ENTRY_POINT: 'dist/index'
+    ENTRY_POINT: 'index',
+    REPO: 'https://github.com/stretchcloud/deepscrape'
   }
 } as const;
 

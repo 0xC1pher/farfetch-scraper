@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import Orchestrator from '../orchestrator/index.js';
+import { Orchestrator } from '../orchestrator/orchestrator';
 import { workflowEngine } from '../workflow-engine/index.js';
 
 export interface BotConfig {
@@ -46,7 +46,6 @@ export class MexaTelegramBot {
 
     this.bot = new TelegramBot(config.token, { polling: false });
     this.orchestrator = new Orchestrator();
-    
     this.setupCommands();
     this.setupCallbacks();
   }
@@ -63,11 +62,10 @@ export class MexaTelegramBot {
     try {
       await this.bot.startPolling();
       this.isRunning = true;
-      console.log('🤖 Mexa Telegram Bot iniciado correctamente');
+      console.log('🤖 Bot de Telegram iniciado correctamente');
       
-      // Limpiar sesiones expiradas cada 30 minutos
-      setInterval(() => this.cleanExpiredSessions(), 30 * 60 * 1000);
-      
+      // Limpiar sesiones expiradas cada hora
+      setInterval(() => this.cleanExpiredSessions(), 60 * 60 * 1000);
     } catch (error) {
       console.error('❌ Error iniciando bot:', error);
       throw error;
@@ -78,14 +76,18 @@ export class MexaTelegramBot {
    * Detener el bot
    */
   async stop(): Promise<void> {
-    if (!this.isRunning) return;
+    if (!this.isRunning) {
+      console.log('🤖 Bot ya está detenido');
+      return;
+    }
 
     try {
       await this.bot.stopPolling();
       this.isRunning = false;
-      console.log('🤖 Bot detenido');
+      console.log('🤖 Bot de Telegram detenido correctamente');
     } catch (error) {
       console.error('❌ Error deteniendo bot:', error);
+      throw error;
     }
   }
 
@@ -96,69 +98,72 @@ export class MexaTelegramBot {
     // Comando /start
     this.bot.onText(/\/start/, async (msg) => {
       const chatId = msg.chat.id.toString();
-      await this.handleStart(chatId);
+      await this.handleStartCommand(chatId);
     });
 
     // Comando /help
     this.bot.onText(/\/help/, async (msg) => {
       const chatId = msg.chat.id.toString();
-      await this.handleHelp(chatId);
+      await this.handleHelpCommand(chatId);
     });
 
-    // Comando /ofertas
-    this.bot.onText(/\/ofertas/, async (msg) => {
+    // Comando /search
+    this.bot.onText(/\/search/, async (msg) => {
       const chatId = msg.chat.id.toString();
-      await this.handleOfertas(chatId);
+      await this.handleSearchCommand(chatId);
     });
 
-    // Comando /login
-    this.bot.onText(/\/login/, async (msg) => {
+    // Comando /filters
+    this.bot.onText(/\/filters/, async (msg) => {
       const chatId = msg.chat.id.toString();
-      await this.handleLogin(chatId);
+      await this.handleFiltersCommand(chatId);
     });
 
-    // Comando /filtros
-    this.bot.onText(/\/filtros/, async (msg) => {
+    // Comando /favorites
+    this.bot.onText(/\/favorites/, async (msg) => {
       const chatId = msg.chat.id.toString();
-      await this.handleFiltros(chatId);
+      await this.handleFavoritesCommand(chatId);
     });
 
-    // Comando /estado
-    this.bot.onText(/\/estado/, async (msg) => {
+    // Comando /status
+    this.bot.onText(/\/status/, async (msg) => {
       const chatId = msg.chat.id.toString();
-      await this.handleEstado(chatId);
+      await this.handleStatusCommand(chatId);
     });
 
-    // Comando /favoritos
-    this.bot.onText(/\/favoritos/, async (msg) => {
-      const chatId = msg.chat.id.toString();
-      await this.handleFavoritos(chatId);
-    });
-
-    // Manejo de mensajes de texto
+    // Manejar mensajes de texto
     this.bot.on('message', async (msg) => {
-      if (msg.text?.startsWith('/')) return; // Ignorar comandos
-      
-      const chatId = msg.chat.id.toString();
-      await this.handleTextMessage(chatId, msg.text || '');
+      if (msg.text && !msg.text.startsWith('/')) {
+        const chatId = msg.chat.id.toString();
+        await this.handleTextMessage(chatId, msg.text);
+      }
     });
   }
 
   /**
-   * Configurar callbacks de botones inline
+   * Configurar callbacks del bot
    */
   private setupCallbacks(): void {
     this.bot.on('callback_query', async (query) => {
       const chatId = query.message?.chat.id.toString();
       const data = query.data;
-      
+
       if (!chatId || !data) return;
 
       try {
+        if (data.startsWith('page_')) {
+          await this.handlePageCallback(chatId, data);
+        } else if (data.startsWith('fav_')) {
+          await this.handleFavoriteCallback(chatId, data);
+        } else if (data.startsWith('filter_')) {
+          await this.handleFilterCallback(chatId, data);
+        }
+
+        // Responder al callback para quitar el loading
         await this.bot.answerCallbackQuery(query.id);
-        await this.handleCallback(chatId, data);
       } catch (error) {
         console.error('Error handling callback:', error);
+        await this.bot.answerCallbackQuery(query.id, { text: 'Error procesando solicitud' });
       }
     });
   }
@@ -166,274 +171,165 @@ export class MexaTelegramBot {
   /**
    * Manejar comando /start
    */
-  private async handleStart(chatId: string): Promise<void> {
+  private async handleStartCommand(chatId: string): Promise<void> {
     const session = this.getOrCreateSession(chatId);
     session.state = 'idle';
 
     const welcomeMessage = `
-🛍️ *¡Bienvenido a Mexa!*
+🛍️ *¡Bienvenido a Mexa Bot!*
 
 Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
 
 *Comandos disponibles:*
-• /ofertas - Ver ofertas más recientes
-• /login - Configurar credenciales
-• /filtros - Configurar filtros de búsqueda
-• /estado - Ver estado del sistema
-• /help - Mostrar esta ayuda
+/search - Buscar ofertas
+/filters - Configurar filtros
+/favorites - Ver favoritos
+/status - Estado del sistema
+/help - Mostrar ayuda
 
-¡Empecemos! Usa /ofertas para ver las últimas ofertas disponibles.
+¡Empecemos! Usa /search para buscar ofertas.
     `;
 
-    const keyboard = {
-      inline_keyboard: [
-        [
-          { text: '🛍️ Ver Ofertas', callback_data: 'ofertas' },
-          { text: '⚙️ Configurar', callback_data: 'config' }
-        ],
-        [
-          { text: '🔍 Filtros', callback_data: 'filtros' },
-          { text: '📊 Estado', callback_data: 'estado' }
-        ]
-      ]
-    };
-
-    await this.bot.sendMessage(chatId, welcomeMessage, {
-      parse_mode: 'Markdown',
-      reply_markup: keyboard
-    });
+    await this.bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
   }
 
   /**
    * Manejar comando /help
    */
-  private async handleHelp(chatId: string): Promise<void> {
+  private async handleHelpCommand(chatId: string): Promise<void> {
     const helpMessage = `
-📖 *Guía de Uso - Mexa Bot*
+🤖 *Ayuda de Mexa Bot*
 
-*Comandos Principales:*
-• \`/start\` - Iniciar el bot
-• \`/ofertas\` - Ver ofertas más recientes
-• \`/login\` - Configurar credenciales de Farfetch
-• \`/filtros\` - Configurar filtros de búsqueda
-• \`/estado\` - Ver estado del sistema
+*Comandos principales:*
+• /start - Iniciar el bot
+• /search - Buscar ofertas en Farfetch
+• /filters - Configurar filtros de búsqueda
+• /favorites - Ver tus productos favoritos
+• /status - Ver estado del sistema
 
-*Filtros Disponibles:*
+*Cómo usar:*
+1. Usa /search para buscar ofertas
+2. Configura filtros con /filters
+3. Guarda productos en favoritos
+4. Navega por páginas con los botones
+
+*Filtros disponibles:*
 • Precio mínimo y máximo
 • Marca específica
 • Descuento mínimo
-• Categoría de producto
 
-*Ejemplo de uso:*
-1. Usa \`/login\` para configurar tus credenciales
-2. Usa \`/filtros\` para establecer tus preferencias
-3. Usa \`/ofertas\` para ver ofertas personalizadas
-
-*Soporte:* Si tienes problemas, usa \`/estado\` para verificar el sistema.
+¿Necesitas más ayuda? Contacta al administrador.
     `;
 
-    await this.bot.sendMessage(chatId, helpMessage, {
-      parse_mode: 'Markdown'
-    });
+    await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
   }
 
   /**
-   * Manejar comando /ofertas
+   * Manejar comando /search
    */
-  private async handleOfertas(chatId: string): Promise<void> {
+  private async handleSearchCommand(chatId: string): Promise<void> {
     const session = this.getOrCreateSession(chatId);
     
     try {
       await this.bot.sendMessage(chatId, '🔍 Buscando ofertas...');
-
-      // Si no hay credenciales, usar datos públicos
-      let offers: any[] = [];
       
-      if (session.credentials) {
-        // Ejecutar workflow de scraping con credenciales
-        const execution = await workflowEngine.executeWorkflow('scraping-flow', {
-          email: session.credentials.email,
-          password: session.credentials.password,
-          filters: session.filters
-        });
-
-        // Esperar a que termine la ejecución
-        await this.waitForExecution(execution.id);
-        const finalExecution = workflowEngine.getExecution(execution.id);
-        offers = finalExecution?.results.offers_filtered || finalExecution?.results.offers || [];
-      } else {
-        // Usar API para obtener ofertas públicas
-        offers = await this.getPublicOffers(session.filters);
-      }
-
+      const offers = await this.getPublicOffers(session.filters);
+      
       if (offers.length === 0) {
-        await this.bot.sendMessage(chatId, '😔 No se encontraron ofertas con los filtros actuales.');
+        await this.bot.sendMessage(chatId, 
+          '😔 No se encontraron ofertas con los filtros actuales.\n\nPrueba ajustar tus filtros con /filters'
+        );
         return;
       }
 
       await this.sendOffers(chatId, offers);
-
     } catch (error) {
-      console.error('Error getting offers:', error);
-      await this.bot.sendMessage(chatId, '❌ Error obteniendo ofertas. Intenta más tarde.');
+      console.error('Error in search command:', error);
+      await this.bot.sendMessage(chatId, '❌ Error buscando ofertas. Intenta más tarde.');
     }
   }
 
   /**
-   * Manejar comando /login
+   * Manejar comando /filters
    */
-  private async handleLogin(chatId: string): Promise<void> {
+  private async handleFiltersCommand(chatId: string): Promise<void> {
     const session = this.getOrCreateSession(chatId);
-    session.state = 'awaiting_credentials';
-
-    const message = `
-🔐 *Configuración de Credenciales*
-
-Para acceder a ofertas personalizadas, necesito tus credenciales de Farfetch.
-
-Por favor, envía tus credenciales en el formato:
-\`email:password\`
-
-Ejemplo: \`usuario@email.com:mipassword\`
-
-⚠️ *Importante:* Tus credenciales se almacenan de forma segura y solo se usan para acceder a Farfetch.
-    `;
-
-    await this.bot.sendMessage(chatId, message, {
-      parse_mode: 'Markdown'
-    });
-  }
-
-  /**
-   * Manejar comando /filtros
-   */
-  private async handleFiltros(chatId: string): Promise<void> {
-    const session = this.getOrCreateSession(chatId);
-    const currentFilters = session.filters || {};
-
-    const message = `
-🔍 *Configuración de Filtros*
-
-*Filtros actuales:*
-• Precio mínimo: ${currentFilters.minPrice || 'Sin límite'}€
-• Precio máximo: ${currentFilters.maxPrice || 'Sin límite'}€
-• Marca: ${currentFilters.brand || 'Cualquiera'}
-• Descuento mínimo: ${currentFilters.minDiscount || 0}%
-
-Selecciona qué filtro quieres configurar:
-    `;
-
+    
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '💰 Precio Mínimo', callback_data: 'filter_minprice' },
-          { text: '💸 Precio Máximo', callback_data: 'filter_maxprice' }
+          { text: '💰 Precio mínimo', callback_data: 'filter_minprice' },
+          { text: '💸 Precio máximo', callback_data: 'filter_maxprice' }
         ],
         [
           { text: '🏷️ Marca', callback_data: 'filter_brand' },
-          { text: '🔥 Descuento', callback_data: 'filter_discount' }
+          { text: '🔥 Descuento mín.', callback_data: 'filter_discount' }
         ],
         [
-          { text: '🗑️ Limpiar Filtros', callback_data: 'filter_clear' },
-          { text: '✅ Guardar', callback_data: 'filter_save' }
+          { text: '🗑️ Limpiar filtros', callback_data: 'filter_clear' }
         ]
       ]
     };
 
-    await this.bot.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
-      reply_markup: keyboard
-    });
+    const currentFilters = session.filters || {};
+    const filtersText = Object.keys(currentFilters).length > 0 
+      ? `\n*Filtros actuales:*\n${JSON.stringify(currentFilters, null, 2)}`
+      : '\n*No hay filtros configurados*';
+
+    await this.bot.sendMessage(chatId, 
+      `⚙️ *Configuración de Filtros*${filtersText}\n\nSelecciona qué filtro quieres configurar:`,
+      { parse_mode: 'Markdown', reply_markup: keyboard }
+    );
   }
 
   /**
-   * Manejar comando /estado
+   * Manejar comando /favorites
    */
-  private async handleEstado(chatId: string): Promise<void> {
-    try {
-      // Simular llamada a health check
-      const status = {
-        system: 'healthy',
-        services: {
-          orchestrator: 'up',
-          workflows: 'up',
-          storage: 'up'
-        },
-        uptime: Math.floor(process.uptime())
-      };
-
-      const message = `
-📊 *Estado del Sistema*
-
-🟢 *Sistema:* ${status.system}
-⏱️ *Tiempo activo:* ${Math.floor(status.uptime / 60)} minutos
-
-*Servicios:*
-• Orquestador: ${status.services.orchestrator === 'up' ? '✅' : '❌'}
-• Workflows: ${status.services.workflows === 'up' ? '✅' : '❌'}
-• Almacenamiento: ${status.services.storage === 'up' ? '✅' : '❌'}
-
-*Sesiones activas:* ${this.userSessions.size}
-      `;
-
-      await this.bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown'
-      });
-
-    } catch (error) {
-      await this.bot.sendMessage(chatId, '❌ Error obteniendo estado del sistema.');
-    }
-  }
-
-  /**
-   * Manejar comando /favoritos
-   */
-  private async handleFavoritos(chatId: string): Promise<void> {
+  private async handleFavoritesCommand(chatId: string): Promise<void> {
     const session = this.getOrCreateSession(chatId);
-
+    
     if (!session.favorites || session.favorites.length === 0) {
-      const message = `
-❤️ *Tus Favoritos*
-
-No tienes ofertas favoritas aún.
-
-Para agregar ofertas a favoritos, usa el comando /ofertas y presiona el botón ❤️ en las ofertas que te gusten.
-      `;
-
-      await this.bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown'
-      });
+      await this.bot.sendMessage(chatId, 
+        '💔 No tienes productos favoritos aún.\n\nUsa /search para encontrar productos y agrégalos a favoritos.'
+      );
       return;
     }
 
-    const message = `
-❤️ *Tus Favoritos*
+    await this.bot.sendMessage(chatId, 
+      `⭐ *Tus Favoritos (${session.favorites.length})*\n\n` +
+      session.favorites.map((id, index) => `${index + 1}. Producto ${id}`).join('\n'),
+      { parse_mode: 'Markdown' }
+    );
+  }
 
-Tienes ${session.favorites.length} ofertas favoritas guardadas.
+  /**
+   * Manejar comando /status
+   */
+  private async handleStatusCommand(chatId: string): Promise<void> {
+    try {
+      const stats = await this.orchestrator.getStats();
+      
+      const statusMessage = `
+🔧 *Estado del Sistema*
 
-*Acciones disponibles:*
-• Ver favoritos
-• Limpiar favoritos
-• Buscar ofertas similares
-    `;
+*Servicios:*
+• Browser MCP: ${stats.browserMCP?.available ? '✅' : '❌'}
+• Scraperr: ${stats.scraperr?.available ? '✅' : '❌'}
+• MinIO: ${stats.minio?.available ? '✅' : '❌'}
 
-    const keyboard = {
-      inline_keyboard: [
-        [
-          { text: '👀 Ver Favoritos', callback_data: 'show_favorites' },
-          { text: '🗑️ Limpiar', callback_data: 'clear_favorites' }
-        ],
-        [
-          { text: '🔍 Buscar Similares', callback_data: 'search_similar' },
-          { text: '🛍️ Ver Ofertas', callback_data: 'ofertas' }
-        ]
-      ]
-    };
+*Estadísticas:*
+• Sesiones activas: ${this.userSessions.size}
+• Última actualización: ${new Date().toLocaleString()}
 
-    await this.bot.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
-      reply_markup: keyboard
-    });
+*Bot:*
+• Estado: ${this.isRunning ? '🟢 Activo' : '🔴 Inactivo'}
+      `;
+
+      await this.bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+    } catch (error) {
+      console.error('Error getting status:', error);
+      await this.bot.sendMessage(chatId, '❌ Error obteniendo estado del sistema.');
+    }
   }
 
   /**
@@ -446,84 +342,25 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
       case 'awaiting_credentials':
         await this.handleCredentialsInput(chatId, text);
         break;
-        
+
       default:
-        await this.bot.sendMessage(chatId, 
+        await this.bot.sendMessage(chatId,
           'No entiendo ese mensaje. Usa /help para ver los comandos disponibles.'
         );
+        break;
     }
   }
 
   /**
-   * Manejar callbacks de botones
-   */
-  private async handleCallback(chatId: string, data: string): Promise<void> {
-    switch (data) {
-      case 'ofertas':
-        await this.handleOfertas(chatId);
-        break;
-
-      case 'config':
-        await this.handleLogin(chatId);
-        break;
-
-      case 'filtros':
-        await this.handleFiltros(chatId);
-        break;
-
-      case 'estado':
-        await this.handleEstado(chatId);
-        break;
-
-      case 'filter_clear':
-        await this.clearFilters(chatId);
-        break;
-
-      default:
-        if (data.startsWith('filter_')) {
-          await this.handleFilterCallback(chatId, data);
-        } else if (data.startsWith('page_')) {
-          await this.handlePageCallback(chatId, data);
-        } else if (data.startsWith('fav_')) {
-          await this.handleFavoriteCallback(chatId, data);
-        }
-    }
-  }
-
-  /**
-   * Manejar callback de paginación
+   * Manejar callbacks de página
    */
   private async handlePageCallback(chatId: string, data: string): Promise<void> {
-    const pageNumber = parseInt(data.replace('page_', ''));
-    const session = this.getOrCreateSession(chatId);
-
-    // Obtener ofertas nuevamente (podrían estar en cache)
     try {
-      await this.bot.sendMessage(chatId, '🔄 Cargando página...');
+      const pageNumber = parseInt(data.replace('page_', ''));
+      const session = this.getOrCreateSession(chatId);
 
-      let offers: any[] = [];
-
-      if (session.credentials) {
-        const execution = await workflowEngine.executeWorkflow('scraping-flow', {
-          email: session.credentials.email,
-          password: session.credentials.password,
-          filters: session.filters
-        });
-
-        await this.waitForExecution(execution.id);
-        const finalExecution = workflowEngine.getExecution(execution.id);
-        offers = finalExecution?.results.offers_filtered || finalExecution?.results.offers || [];
-      } else {
-        offers = await this.getPublicOffers(session.filters);
-      }
-
-      if (offers.length === 0) {
-        await this.bot.sendMessage(chatId, '😔 No se encontraron ofertas.');
-        return;
-      }
-
+      const offers = await this.getPublicOffers(session.filters);
       await this.sendOffers(chatId, offers, pageNumber);
-
     } catch (error) {
       console.error('Error in page callback:', error);
       await this.bot.sendMessage(chatId, '❌ Error cargando página. Intenta más tarde.');
@@ -537,31 +374,28 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
     const offerId = data.replace('fav_', '');
     const session = this.getOrCreateSession(chatId);
 
-    // Inicializar favoritos si no existen
     if (!session.favorites) {
       session.favorites = [];
     }
 
     if (session.favorites.includes(offerId)) {
-      // Remover de favoritos
       session.favorites = session.favorites.filter(id => id !== offerId);
-      await this.bot.sendMessage(chatId, '💔 Removido de favoritos');
+      await this.bot.sendMessage(chatId, '💔 Producto removido de favoritos');
     } else {
-      // Agregar a favoritos
       session.favorites.push(offerId);
-      await this.bot.sendMessage(chatId, '❤️ Agregado a favoritos');
+      await this.bot.sendMessage(chatId, '⭐ Producto agregado a favoritos');
     }
   }
 
   /**
-   * Manejar entrada de credenciales
+   * Manejar input de credenciales
    */
   private async handleCredentialsInput(chatId: string, text: string): Promise<void> {
     const session = this.getOrCreateSession(chatId);
 
     if (!text.includes(':')) {
       await this.bot.sendMessage(chatId,
-        '❌ Formato incorrecto. Usa: email:password'
+        '❌ Formato incorrecto. Usa: email:contraseña'
       );
       return;
     }
@@ -570,25 +404,16 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
 
     if (!email || !password) {
       await this.bot.sendMessage(chatId,
-        '❌ Email y password son requeridos.'
+        '❌ Email y contraseña son requeridos. Usa: email:contraseña'
       );
       return;
     }
 
-    // Validar email básico
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      await this.bot.sendMessage(chatId,
-        '❌ Formato de email inválido.'
-      );
-      return;
-    }
-
-    session.credentials = { email, password };
+    session.credentials = { email: email.trim(), password: password.trim() };
     session.state = 'idle';
 
     await this.bot.sendMessage(chatId,
-      '✅ Credenciales guardadas correctamente. Ahora puedes usar /ofertas para ver ofertas personalizadas.'
+      '✅ Credenciales guardadas correctamente.\n\nAhora puedes usar /search para buscar ofertas.'
     );
   }
 
@@ -602,29 +427,33 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
       case 'filter_minprice':
         session.state = 'awaiting_filters';
         await this.bot.sendMessage(chatId,
-          '💰 Envía el precio mínimo en euros (ejemplo: 50)'
+          '💰 Ingresa el precio mínimo (solo números):'
         );
         break;
 
       case 'filter_maxprice':
         session.state = 'awaiting_filters';
         await this.bot.sendMessage(chatId,
-          '💸 Envía el precio máximo en euros (ejemplo: 500)'
+          '💸 Ingresa el precio máximo (solo números):'
         );
         break;
 
       case 'filter_brand':
         session.state = 'awaiting_filters';
         await this.bot.sendMessage(chatId,
-          '🏷️ Envía el nombre de la marca (ejemplo: Nike)'
+          '🏷️ Ingresa el nombre de la marca:'
         );
         break;
 
       case 'filter_discount':
         session.state = 'awaiting_filters';
         await this.bot.sendMessage(chatId,
-          '🔥 Envía el descuento mínimo en % (ejemplo: 30)'
+          '🔥 Ingresa el descuento mínimo (%):'
         );
+        break;
+
+      case 'filter_clear':
+        await this.clearFilters(chatId);
         break;
     }
   }
@@ -637,67 +466,48 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
     session.filters = {};
 
     await this.bot.sendMessage(chatId,
-      '🗑️ Filtros limpiados. Ahora verás todas las ofertas disponibles.'
+      '🗑️ Filtros limpiados correctamente.'
     );
   }
 
   /**
-   * Enviar ofertas al usuario con paginación
+   * Enviar ofertas con paginación
    */
   private async sendOffers(chatId: string, offers: any[], page: number = 0): Promise<void> {
-    const maxOffers = this.config.maxOffersPerMessage || 5; // Reducido para mejor UX
+    const maxOffers = this.config.maxOffersPerMessage || 5;
     const startIndex = page * maxOffers;
     const endIndex = startIndex + maxOffers;
     const offersToShow = offers.slice(startIndex, endIndex);
     const totalPages = Math.ceil(offers.length / maxOffers);
 
     if (offersToShow.length === 0) {
-      await this.bot.sendMessage(chatId, '😔 No hay más ofertas disponibles.');
+      await this.bot.sendMessage(chatId, '😔 No hay ofertas para mostrar.');
       return;
     }
 
-    // Enviar ofertas
     for (const offer of offersToShow) {
       const message = this.formatOffer(offer);
-
       const keyboard = {
         inline_keyboard: [
           [
-            { text: '🛒 Ver en Farfetch', url: offer.productUrl || 'https://www.farfetch.com' },
-            { text: '❤️ Favorito', callback_data: `fav_${offer.id || 'unknown'}` }
+            { text: '⭐ Favorito', callback_data: `fav_${offer.id}` },
+            { text: '🔗 Ver producto', url: offer.productUrl }
           ]
         ]
       };
 
-      try {
-        if (offer.imageUrl) {
-          await this.bot.sendPhoto(chatId, offer.imageUrl, {
-            caption: message,
-            parse_mode: 'Markdown',
-            reply_markup: keyboard
-          });
-        } else {
-          await this.bot.sendMessage(chatId, message, {
-            parse_mode: 'Markdown',
-            reply_markup: keyboard
-          });
-        }
-      } catch (error) {
-        // Si falla el envío con imagen, enviar solo texto
-        await this.bot.sendMessage(chatId, message, {
-          parse_mode: 'Markdown',
-          reply_markup: keyboard
-        });
-      }
+      await this.bot.sendMessage(chatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard
+      });
     }
 
-    // Controles de paginación
+    // Agregar navegación si hay múltiples páginas
     if (totalPages > 1) {
-      const paginationKeyboard = this.createPaginationKeyboard(page, totalPages, offers.length);
-
+      const navKeyboard = this.createPaginationKeyboard(page, totalPages, offers.length);
       await this.bot.sendMessage(chatId,
-        `📄 Página ${page + 1} de ${totalPages} (${offers.length} ofertas totales)`,
-        { reply_markup: paginationKeyboard }
+        `📄 Página ${page + 1} de ${totalPages} (${offers.length} ofertas total)`,
+        { reply_markup: navKeyboard }
       );
     }
   }
@@ -708,132 +518,67 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
   private createPaginationKeyboard(currentPage: number, totalPages: number, totalOffers: number) {
     const buttons = [];
 
-    // Fila de navegación
-    const navRow = [];
     if (currentPage > 0) {
-      navRow.push({ text: '⬅️ Anterior', callback_data: `page_${currentPage - 1}` });
+      buttons.push({ text: '⬅️ Anterior', callback_data: `page_${currentPage - 1}` });
     }
+
     if (currentPage < totalPages - 1) {
-      navRow.push({ text: '➡️ Siguiente', callback_data: `page_${currentPage + 1}` });
-    }
-    if (navRow.length > 0) {
-      buttons.push(navRow);
+      buttons.push({ text: '➡️ Siguiente', callback_data: `page_${currentPage + 1}` });
     }
 
-    // Fila de acciones
-    const actionRow = [
-      { text: '🔍 Filtrar', callback_data: 'filtros' },
-      { text: '🔄 Actualizar', callback_data: 'ofertas' }
-    ];
-    buttons.push(actionRow);
-
-    // Fila de salto de página (solo si hay muchas páginas)
-    if (totalPages > 5) {
-      const jumpRow = [
-        { text: '⏮️ Primera', callback_data: 'page_0' },
-        { text: '⏭️ Última', callback_data: `page_${totalPages - 1}` }
-      ];
-      buttons.push(jumpRow);
-    }
-
-    return { inline_keyboard: buttons };
+    return {
+      inline_keyboard: buttons.length > 0 ? [buttons] : []
+    };
   }
 
   /**
    * Formatear oferta para mostrar
    */
   private formatOffer(offer: any): string {
-    const title = offer.title || 'Producto sin título';
-    const brand = offer.brand || 'Marca desconocida';
-    const price = offer.price ? `€${offer.price}` : 'Precio no disponible';
-    const originalPrice = offer.originalPrice ? `€${offer.originalPrice}` : null;
-    const discount = offer.discount ? `${Math.round(offer.discount)}% OFF` : null;
+    const discount = offer.originalPrice && offer.price
+      ? Math.round(((offer.originalPrice - offer.price) / offer.originalPrice) * 100)
+      : 0;
 
-    let message = `🛍️ *${title}*\n`;
-    message += `🏷️ ${brand}\n`;
-
-    if (originalPrice && discount) {
-      message += `💰 ~~${originalPrice}~~ *${price}* (${discount})\n`;
-    } else {
-      message += `💰 *${price}*\n`;
-    }
-
-    if (offer.availability) {
-      message += `✅ Disponible\n`;
-    } else {
-      message += `❌ No disponible\n`;
-    }
-
-    return message;
+    return `
+🛍️ *${offer.title}*
+🏷️ Marca: ${offer.brand}
+💰 Precio: $${offer.price}${offer.originalPrice ? ` ~~$${offer.originalPrice}~~` : ''}
+${discount > 0 ? `🔥 Descuento: ${discount}%` : ''}
+📦 Disponible: ${offer.availability ? '✅' : '❌'}
+    `.trim();
   }
 
   /**
-   * Obtener ofertas públicas (sin autenticación)
+   * Obtener ofertas públicas (mock)
    */
   private async getPublicOffers(filters?: any): Promise<any[]> {
     try {
-      // Simular ofertas públicas - en producción esto vendría de la API
+      // Mock data para pruebas
       const mockOffers = [
         {
-          id: 'public-1',
-          title: 'Nike Air Max 90',
+          id: '1',
+          title: 'Sneakers Nike Air Max',
           brand: 'Nike',
           price: 120,
           originalPrice: 150,
-          discount: 20,
-          imageUrl: 'https://via.placeholder.com/300x300',
-          productUrl: 'https://www.farfetch.com/product/1',
           availability: true,
-          timestamp: new Date()
+          productUrl: 'https://farfetch.com/product/1'
         },
         {
-          id: 'public-2',
-          title: 'Adidas Ultraboost',
-          brand: 'Adidas',
-          price: 180,
-          originalPrice: 200,
-          discount: 10,
-          imageUrl: 'https://via.placeholder.com/300x300',
-          productUrl: 'https://www.farfetch.com/product/2',
+          id: '2',
+          title: 'Gucci Belt',
+          brand: 'Gucci',
+          price: 450,
+          originalPrice: 500,
           availability: true,
-          timestamp: new Date()
+          productUrl: 'https://farfetch.com/product/2'
         }
       ];
 
-      // Aplicar filtros si existen
-      if (filters) {
-        return mockOffers.filter(offer => {
-          if (filters.minPrice && offer.price < filters.minPrice) return false;
-          if (filters.maxPrice && offer.price > filters.maxPrice) return false;
-          if (filters.brand && !offer.brand.toLowerCase().includes(filters.brand.toLowerCase())) return false;
-          if (filters.minDiscount && offer.discount < filters.minDiscount) return false;
-          return true;
-        });
-      }
-
       return mockOffers;
     } catch (error) {
-      console.error('Error getting public offers:', error);
+      console.error('Error getting offers:', error);
       return [];
-    }
-  }
-
-  /**
-   * Esperar a que termine la ejecución de un workflow
-   */
-  private async waitForExecution(executionId: string, maxWait: number = 60000): Promise<void> {
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < maxWait) {
-      const execution = workflowEngine.getExecution(executionId);
-
-      if (!execution) break;
-
-      if (execution.status === 'completed' || execution.status === 'failed' || execution.status === 'cancelled') {
-        break;
-      }
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
 
@@ -841,17 +586,15 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
    * Obtener o crear sesión de usuario
    */
   private getOrCreateSession(chatId: string): UserSession {
-    let session = this.userSessions.get(chatId);
-
-    if (!session) {
-      session = {
+    if (!this.userSessions.has(chatId)) {
+      this.userSessions.set(chatId, {
         chatId,
         state: 'idle',
         lastActivity: new Date()
-      };
-      this.userSessions.set(chatId, session);
+      });
     }
 
+    const session = this.userSessions.get(chatId)!;
     session.lastActivity = new Date();
     return session;
   }
@@ -868,8 +611,6 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
         this.userSessions.delete(chatId);
       }
     }
-
-    console.log(`🧹 Limpieza de sesiones: ${this.userSessions.size} sesiones activas`);
   }
 
   /**
@@ -879,7 +620,7 @@ Tienes ${session.favorites.length} ofertas favoritas guardadas.
     return {
       isRunning: this.isRunning,
       activeSessions: this.userSessions.size,
-      uptime: process.uptime()
+      totalSessions: this.userSessions.size
     };
   }
 }

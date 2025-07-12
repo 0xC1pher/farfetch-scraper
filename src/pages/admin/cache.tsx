@@ -1,11 +1,22 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import {
-  ChartBarIcon,
-  TrashIcon,
-  CpuChipIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
+  Cpu,
+  Trash2,
+  XCircle,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  Zap,
+  Terminal,
+  BarChart2,
+  TrendingUp,
+  Settings,
+  ShoppingBag,
+  Book,
+  RefreshCw
+} from 'lucide-react';
+import RealTimeLogs from '../../components/Logs/RealTimeLogs';
 
 interface CacheStats {
   totalEntries: number;
@@ -20,6 +31,7 @@ export default function CachePage() {
   const [stats, setStats] = useState<CacheStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStats();
@@ -75,229 +87,511 @@ export default function CachePage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="text-xl">Cargando estadísticas de cache...</div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <p className="text-lg text-gray-700">No se pudieron cargar las estadísticas del caché.</p>
+          <button
+            onClick={fetchStats}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Reintentar
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <AdminLayout
-      title="Cache del Sistema"
-      description="Optimización y estadísticas"
-    >
-      <div className="space-y-6">
-
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Gestión de Caché</h2>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => handleAction('clear')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Vaciar Caché
+              </button>
+              <button
+                onClick={handleInvalidatePattern}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                Invalidar Patrón
+              </button>
+            </div>
+          </div>
+          
           {error && (
-            <div className="backdrop-blur-md bg-red-500/20 border border-red-400/30 text-red-100 px-6 py-4 rounded-xl mb-8 shadow-lg">
-              <div className="flex items-center space-x-3">
-                <ExclamationTriangleIcon className="h-4 w-4 text-red-400" />
-                <span className="font-medium">{error}</span>
+            <div className="rounded-md bg-red-50 p-4 mb-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <XCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800">Error</h3>
+                  <div className="mt-2 text-sm text-red-700">
+                    <p>{error}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {feedback && (
+            <div className="rounded-md bg-green-50 p-4 mb-6">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <CheckCircle2 className="h-5 w-5 text-green-400" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-green-800">{feedback}</p>
+                </div>
+                <div className="ml-auto pl-3">
+                  <div className="-mx-1.5 -my-1.5">
+                    <button
+                      type="button"
+                      className="inline-flex rounded-md bg-green-50 p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-600 focus:ring-offset-2 focus:ring-offset-green-50"
+                      onClick={() => setFeedback(null)}
+                    >
+                      <span className="sr-only">Cerrar</span>
+                      <XCircle className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Estadísticas Principales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-blue-400 mb-2">
-                    {stats?.totalEntries || 0}
-                  </div>
-                  <div className="text-sm text-blue-200 font-medium">Entradas Totales</div>
+        {/* Estadísticas Principales */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
+                  <BarChart2 className="h-6 w-6 text-white" />
                 </div>
-                <div className="p-2 bg-blue-500/20 rounded-lg">
-                  <ChartBarIcon className="h-5 w-5 text-blue-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-green-400 mb-2">
-                    {stats?.totalHits || 0}
-                  </div>
-                  <div className="text-sm text-green-200 font-medium">Cache Hits</div>
-                </div>
-                <div className="p-3 bg-green-500/20 rounded-xl">
-                  <svg className="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-red-400 mb-2">
-                    {stats?.totalMisses || 0}
-                  </div>
-                  <div className="text-sm text-red-200 font-medium">Cache Misses</div>
-                </div>
-                <div className="p-3 bg-red-500/20 rounded-xl">
-                  <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-purple-400 mb-2">
-                    {stats?.hitRate.toFixed(1) || 0}%
-                  </div>
-                  <div className="text-sm text-purple-200 font-medium">Tasa de Aciertos</div>
-                </div>
-                <div className="p-3 bg-purple-500/20 rounded-xl">
-                  <svg className="h-5 w-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                  </svg>
+                <div className="ml-5 w-0 flex-1">
+                  <dt className="text-sm font-medium text-gray-500 truncate">Entradas en caché</dt>
+                  <dd className="text-3xl font-bold text-gray-900">{stats?.totalEntries?.toLocaleString() ?? '0'}</dd>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Uso de Memoria y Acciones */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white flex items-center">
-                  <div className="p-2 bg-cyan-500/20 rounded-lg mr-3">
-                    <CpuChipIcon className="h-4 w-4 text-cyan-400" />
-                  </div>
-                  Uso de Memoria
-                </h2>
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dt className="text-sm font-medium text-gray-500 truncate">Aciertos</dt>
+                  <dd className="text-3xl font-bold text-gray-900">{stats?.totalHits?.toLocaleString() ?? '0'}</dd>
+                </div>
               </div>
-              <div className="space-y-6">
-                <div className="flex justify-between items-center p-4 bg-white/5 rounded-lg border border-white/10">
-                  <span className="text-cyan-200 font-medium">Memoria utilizada:</span>
-                  <span className="font-bold text-cyan-300 text-lg">
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 bg-yellow-500 rounded-md p-3">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dt className="text-sm font-medium text-gray-500 truncate">Fallos</dt>
+                  <dd className="text-3xl font-bold text-gray-900">{stats?.totalMisses?.toLocaleString() ?? '0'}</dd>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
+                  <Zap className="h-6 w-6 text-white" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dt className="text-sm font-medium text-gray-500 truncate">Tasa de acierto</dt>
+                  <dd className="text-3xl font-bold text-gray-900">{stats?.hitRate?.toFixed(1) ?? '0.0'}%</dd>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Uso de Memoria y Acciones */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0 bg-cyan-100 rounded-md p-3">
+                  <Cpu className="h-6 w-6 text-cyan-600" />
+                </div>
+                <h3 className="ml-3 text-lg font-medium text-gray-900">Uso de Memoria</h3>
+              </div>
+              <div className="mt-6 space-y-6">
+                <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <span className="text-gray-700 font-medium">Memoria utilizada:</span>
+                  <span className="font-bold text-gray-900 text-lg">
                     {stats?.memoryUsage || 0} KB
                   </span>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-cyan-200">Progreso de uso</span>
-                    <span className="text-cyan-300 font-medium">
+                    <span className="text-gray-700">Progreso de uso</span>
+                    <span className="text-gray-700 font-medium">
                       {((stats?.memoryUsage || 0) / 1024).toFixed(1)} MB
                     </span>
                   </div>
-                  <div className="w-full bg-slate-700/50 rounded-full h-4 overflow-hidden">
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                     <div
-                      className="bg-gradient-to-r from-cyan-500 to-blue-500 h-4 rounded-full transition-all duration-1000 ease-out shadow-lg"
+                      className="bg-gradient-to-r from-cyan-500 to-blue-500 h-2.5 rounded-full transition-all duration-1000 ease-out"
                       style={{
                         width: `${Math.min((stats?.memoryUsage || 0) / 1024 * 100, 100)}%`
                       }}
-                    ></div>
+                    />
                   </div>
 
-                  <div className="text-xs text-cyan-200">
+                  <div className="text-xs text-gray-500">
                     Estimación basada en el contenido del cache
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
 
-            <div className="backdrop-blur-md bg-white/10 rounded-2xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all duration-300">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white flex items-center">
-                  <div className="p-2 bg-orange-500/20 rounded-lg mr-3">
-                    <svg className="h-4 w-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  Acciones de Cache
-                </h2>
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 bg-orange-100 rounded-md p-3">
+                <Settings className="h-6 w-6 text-orange-600" />
               </div>
-              <div className="space-y-4">
-                <button
-                  onClick={() => handleAction('cleanup')}
-                  className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-3 px-6 rounded-xl hover:from-yellow-600 hover:to-orange-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  <span>Limpiar Expirados</span>
-                </button>
+              <h3 className="ml-3 text-lg font-medium text-gray-900">Acciones de Cache</h3>
+            </div>
 
-                <button
-                  onClick={() => handleAction('invalidate-offers')}
-                  className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-6 rounded-xl hover:from-orange-600 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-orange-400 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                  </svg>
-                  <span>Invalidar Ofertas</span>
-                </button>
+            <div className="mt-6 space-y-4">
+              <button
+                onClick={() => handleAction('cleanup')}
+                className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition-colors duration-200"
+              >
+                <Trash2 className="h-5 w-5 mr-2" />
+                Limpiar Expirados
+              </button>
 
-                <button
-                  onClick={handleInvalidatePattern}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-xl hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                  </svg>
-                  <span>Invalidar Patrón</span>
-                </button>
+              <button
+                onClick={() => handleAction('invalidate-offers')}
+                className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200"
+              >
+                <ShoppingBag className="h-5 w-5 mr-2" />
+                Invalidar Ofertas
+              </button>
 
-                <button
-                  onClick={() => {
-                    if (confirm('¿Estás seguro de que quieres limpiar todo el cache?')) {
-                      handleAction('clear');
-                    }
-                  }}
-                  className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-6 rounded-xl hover:from-red-600 hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center space-x-2"
+              <button
+                onClick={handleInvalidatePattern}
+                className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-500 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-200"
+              >
+                <Book className="h-5 w-5 mr-2" />
+                Invalidar Patrón
+              </button>
+
+              <button
+                onClick={() => {
+                  if (confirm('¿Estás seguro de que quieres limpiar todo el cache?')) {
+                    handleAction('clear');
+                  }
+                }}
+                className="w-full flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+              >
+                <Zap className="h-5 w-5 mr-2" />
+                Limpiar Todo
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Sección de Workflows */}
+        <div className="mt-8 bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                  <span className="bg-blue-100 p-2 rounded-lg mr-3">
+                    <Zap className="h-5 w-5 text-blue-600" />
+                  </span>
+                  Workflows Activos
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">Monitorea y gestiona los workflows en ejecución</p>
+              </div>
+              <div className="flex space-x-2">
+                <button 
+                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  onClick={() => console.log('Nuevo workflow')}
                 >
-                  <TrashIcon className="h-5 w-5" />
-                  <span>Limpiar Todo</span>
+                  <Zap className="h-3.5 w-3.5 mr-1.5" />
+                  Iniciar Nuevo
+                </button>
+                <button 
+                  className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                  onClick={fetchStats}
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                  Actualizar
                 </button>
               </div>
             </div>
           </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+            {/* Workflow 1 */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300">
+              <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-gray-900 text-base">Extracción de Productos</h4>
+                    <p className="text-sm text-gray-500 mt-1">Última ejecución: Hace 5 min</p>
+                  </div>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Activo
+                  </span>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Progreso</span>
+                    <span className="font-medium">75%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full" 
+                      style={{ width: '75%' }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Productos</p>
+                    <p className="font-medium">120/160</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Velocidad</p>
+                    <p className="font-medium">4.2s/ítem</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
+                <button 
+                  className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  onClick={() => console.log('Detener workflow')}
+                >
+                  Detener
+                </button>
+                <button 
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors"
+                  onClick={() => console.log('Ver detalles')}
+                >
+                  Ver Detalles
+                </button>
+              </div>
+            </div>
 
-          {/* Entradas Más Populares */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">🔥 Entradas Más Populares</h2>
+            {/* Workflow 2 */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300">
+              <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-yellow-50 to-white">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-gray-900 text-base">Sincronización de Precios</h4>
+                    <p className="text-sm text-gray-500 mt-1">Última ejecución: Hace 2 min</p>
+                  </div>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                    Pausado
+                  </span>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Progreso</span>
+                    <span className="font-medium">30%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-yellow-400 to-yellow-500 h-2 rounded-full" 
+                      style={{ width: '30%' }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Productos</p>
+                    <p className="font-medium">45/150</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Velocidad</p>
+                    <p className="font-medium">2.1s/ítem</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-end space-x-3">
+                <button 
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-yellow-500 hover:bg-yellow-600 rounded-md shadow-sm transition-colors"
+                  onClick={() => console.log('Reanudar workflow')}
+                >
+                  Reanudar
+                </button>
+                <button 
+                  className="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                  onClick={() => console.log('Ver detalles')}
+                >
+                  Ver Detalles
+                </button>
+              </div>
+            </div>
+
+            {/* Workflow 3 */}
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow duration-300">
+              <div className="p-5 border-b border-gray-100 bg-gradient-to-r from-green-50 to-white">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="font-medium text-gray-900 text-base">Actualización de Inventario</h4>
+                    <p className="text-sm text-gray-500 mt-1">Completado: Hace 1 hora</p>
+                  </div>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Completado
+                  </span>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Progreso</span>
+                    <span className="font-medium text-green-600">100%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full" 
+                      style={{ width: '100%' }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Productos</p>
+                    <p className="font-medium">200/200</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Velocidad</p>
+                    <p className="font-medium">1.8s/ítem</p>
+                  </div>
+                </div>
+              </div>
+              <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
+                <span className="text-xs text-gray-500">
+                  Tiempo total: 6m 12s
+                </span>
+                <div className="flex space-x-2">
+                  <button 
+                    className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                    onClick={() => console.log('Ver historial')}
+                  >
+                    Historial
+                  </button>
+                  <button 
+                    className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm transition-colors"
+                    onClick={() => console.log('Ver detalles')}
+                  >
+                    Ver Detalles
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sección de Entradas Más Populares */}
+        <div className="mt-8 bg-white overflow-hidden shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+              <span className="text-yellow-500 mr-2">🔥</span>
+              Entradas Más Populares
+            </h3>
+            <p className="text-sm text-gray-500 mt-1">Estadísticas de uso del caché en tiempo real</p>
+          </div>
+          <div className="bg-white px-6 py-4">
             {stats?.popularEntries && stats.popularEntries.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Clave de Cache
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Hits
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tipo
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {stats.popularEntries.map((entry, index) => (
-                      <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                      <tr key={index} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-800">
                           {entry.key.length > 50 ? `${entry.key.substring(0, 50)}...` : entry.key}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2.5 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                             {entry.hits}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {entry.key.startsWith('offers:') && '🛍️ Ofertas'}
-                          {entry.key.startsWith('session:') && '🔐 Sesión'}
-                          {entry.key.startsWith('health:') && '🏥 Health'}
-                          {entry.key.startsWith('proxy:') && '🔄 Proxy'}
-                          {entry.key.startsWith('workflow:') && '⚙️ Workflow'}
-                          {!['offers:', 'session:', 'health:', 'proxy:', 'workflow:'].some(prefix => entry.key.startsWith(prefix)) && '📄 API'}
+                          {entry.key.startsWith('offers:') && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              🛍️ Ofertas
+                            </span>
+                          )}
+                          {entry.key.startsWith('session:') && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              🔐 Sesión
+                            </span>
+                          )}
+                          {entry.key.startsWith('health:') && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                              🏥 Health
+                            </span>
+                          )}
+                          {entry.key.startsWith('proxy:') && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
+                              🔄 Proxy
+                            </span>
+                          )}
+                          {entry.key.startsWith('workflow:') && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              ⚙️ Workflow
+                            </span>
+                          )}
+                          {!['offers:', 'session:', 'health:', 'proxy:', 'workflow:'].some(prefix => entry.key.startsWith(prefix)) && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              📄 API
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -305,27 +599,46 @@ export default function CachePage() {
                 </table>
               </div>
             ) : (
-              <div className="text-center text-gray-500 py-8">
-                No hay entradas en el cache
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <p className="text-gray-500">No hay entradas en el caché</p>
+                <button
+                  onClick={fetchStats}
+                  className="mt-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-md text-sm font-medium hover:bg-blue-100"
+                >
+                  Actualizar
+                </button>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Información Adicional */}
-          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">
-              ℹ️ Información del Cache
+            {/* Información Adicional */}
+          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-blue-800 mb-3 flex items-center">
+              <Info className="h-5 w-5 mr-2 text-blue-600" />
+              Información del Cache
             </h3>
-            <div className="text-sm text-blue-800 space-y-1">
-              <p>• El cache se limpia automáticamente cada 5 minutos</p>
-              <p>• Las ofertas se cachean por 5 minutos</p>
-              <p>• Los health checks se cachean por 30 segundos</p>
-              <p>• Las sesiones se cachean por 30 minutos</p>
-              <p>• El cache mejora significativamente la velocidad de respuesta</p>
+            <div className="text-sm text-blue-700 space-y-2">
+              <p>• El cache se limpia automáticamente cada 5 minutos para mantener la frescura de los datos.</p>
+              <p>• Los datos en caché se invalidan automáticamente según su tiempo de vida (TTL).</p>
+              <p>• El uso de caché mejora significativamente el rendimiento de la aplicación.</p>
             </div>
           </div>
         </div>
       </div>
-    </AdminLayout>
+
+      {/* Sección de Logs en Tiem Real */}
+      <div className="mt-8">
+        <div className="bg-white shadow overflow-hidden rounded-lg">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center">
+            <Terminal className="h-5 w-5 text-gray-500 mr-2" />
+            <h3 className="text-lg font-medium text-gray-900">Registros del Sistema</h3>
+          </div>
+          <div className="p-0">
+            <RealTimeLogs />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
