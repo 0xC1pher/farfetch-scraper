@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LogsTab from './LogsTab';
 import WorkflowsTab from './workflows';
 import CacheTab from './cache';
+import ModulesTab from './ModulesTab';
 
 // Tipos para los datos reales
 interface SystemStatus {
@@ -26,6 +27,7 @@ const TABS = [
   { key: 'logs', label: 'Logs' },
   { key: 'workflows', label: 'Workflows' },
   { key: 'cache', label: 'Cache' },
+  { key: 'modules', label: 'Módulos' },
 ];
 
 export default function AdminPanel() {
@@ -300,6 +302,17 @@ export default function AdminPanel() {
           </div>
           <div style={{margin: 0, padding: '1rem'}}>
             <CacheTab />
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'modules' && (
+        <div className="admin-card admin-mt-4">
+          <div className="admin-card-header">
+            <h3 className="admin-card-title">Gestión de Módulos</h3>
+          </div>
+          <div style={{margin: 0, padding: '1rem'}}>
+            <ModulesTab />
           </div>
         </div>
       )}
