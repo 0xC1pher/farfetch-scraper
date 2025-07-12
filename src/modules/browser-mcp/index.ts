@@ -2,6 +2,7 @@
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { MinioStorage } from '../minio';
 
 export interface BrowserMCPConfig {
   externalPath: string;
@@ -27,9 +28,11 @@ export interface SessionData {
 export class BrowserMCPHook {
   private config: BrowserMCPConfig;
   private isAvailable: boolean = false;
+  private minio: MinioStorage;
 
   constructor(config: BrowserMCPConfig) {
     this.config = config;
+    this.minio = new MinioStorage();
     this.checkAvailability();
   }
 
@@ -95,15 +98,73 @@ export class BrowserMCPHook {
         errorOutput += data.toString();
       });
 
-      process.on('close', (code) => {
+      process.on('close', async (code) => {
         if (code === 0) {
           try {
             const result = JSON.parse(output);
+
+            // Guardar datos automáticamente en MinIO
+            try {
+              await this.minio.saveBrowserMCPData(
+                {
+                  action: 'login',
+                  email,
+                  fingerprint: options?.fingerprint,
+                  proxy: options?.proxy,
+                  sessionId: result.sessionId,
+                  cookies: result.cookies,
+                  userAgent: result.userAgent,
+                  viewport: result.viewport
+                },
+                `login://${email}`,
+                true
+              );
+            } catch (minioError) {
+              console.error('Error guardando datos de login en MinIO:', minioError);
+            }
+
             resolve(result);
           } catch (e) {
-            resolve({ success: true, sessionId: output.trim() });
+            const sessionId = output.trim();
+
+            // Guardar datos básicos en caso de respuesta simple
+            try {
+              await this.minio.saveBrowserMCPData(
+                {
+                  action: 'login',
+                  email,
+                  sessionId,
+                  fingerprint: options?.fingerprint,
+                  proxy: options?.proxy
+                },
+                `login://${email}`,
+                true
+              );
+            } catch (minioError) {
+              console.error('Error guardando datos básicos de login en MinIO:', minioError);
+            }
+
+            resolve({ success: true, sessionId });
           }
         } else {
+          // Guardar error en MinIO
+          try {
+            await this.minio.saveBrowserMCPData(
+              {
+                action: 'login',
+                email,
+                fingerprint: options?.fingerprint,
+                proxy: options?.proxy,
+                errorOutput
+              },
+              `login://${email}`,
+              false,
+              `Login failed: ${errorOutput}`
+            );
+          } catch (minioError) {
+            console.error('Error guardando error de login en MinIO:', minioError);
+          }
+
           reject(new Error(`Login failed: ${errorOutput}`));
         }
       });

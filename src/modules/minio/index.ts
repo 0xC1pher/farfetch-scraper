@@ -16,6 +16,18 @@ export interface ScrapingData {
   selectors: any[];
   data: any;
   timestamp: Date;
+  module?: string;
+  metadata?: any;
+}
+
+export interface ModuleData {
+  module: string;
+  url: string;
+  data: any;
+  timestamp: Date;
+  metadata?: any;
+  success: boolean;
+  error?: string;
 }
 
 export interface MinioConfig {
@@ -147,18 +159,19 @@ export class MinioStorage {
   }
 
   /**
-   * Guardar datos de scraping
+   * Guardar datos de scraping con soporte para múltiples módulos
    */
-  async saveScrapingData(scrapingData: ScrapingData): Promise<void> {
+  async saveScrapingData(scrapingData: ScrapingData, module: string = 'scraperr'): Promise<void> {
     if (!this.isAvailable) {
       throw new Error('MinIO not available');
     }
 
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const key = `scraping/${timestamp}-${Date.now()}.json`;
+      const date = new Date().toISOString().split('T')[0];
+      const key = `scraping/${module}/${date}/${timestamp}-${Date.now()}.json`;
       const data = JSON.stringify(scrapingData, null, 2);
-      
+
       await this.client.putObject(
         this.bucket,
         key,
@@ -169,10 +182,198 @@ export class MinioStorage {
         }
       );
 
-      console.log(`✅ Datos de scraping guardados: ${key}`);
+      console.log(`✅ Datos de scraping guardados [${module}]: ${key}`);
     } catch (error) {
-      console.error('❌ Error guardando datos de scraping:', error);
+      console.error(`❌ Error guardando datos de scraping [${module}]:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Guardar datos de cualquier módulo de extracción
+   */
+  async saveModuleData(moduleData: ModuleData): Promise<void> {
+    if (!this.isAvailable) {
+      throw new Error('MinIO not available');
+    }
+
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const date = new Date().toISOString().split('T')[0];
+      const key = `extraction/${moduleData.module}/${date}/${timestamp}-${Date.now()}.json`;
+
+      const dataToSave = {
+        ...moduleData,
+        savedAt: new Date().toISOString(),
+        version: '1.0'
+      };
+
+      const jsonData = JSON.stringify(dataToSave, null, 2);
+
+      await this.client.putObject(
+        this.bucket,
+        key,
+        Buffer.from(jsonData),
+        jsonData.length,
+        {
+          'Content-Type': 'application/json',
+          'X-Module': moduleData.module,
+          'X-Success': moduleData.success.toString()
+        }
+      );
+
+      console.log(`✅ Datos del módulo guardados [${moduleData.module}]: ${key}`);
+    } catch (error) {
+      console.error(`❌ Error guardando datos del módulo [${moduleData.module}]:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Guardar datos específicos de Browser-MCP
+   */
+  async saveBrowserMCPData(data: any, url: string, success: boolean, error?: string): Promise<void> {
+    const moduleData: ModuleData = {
+      module: 'browser-mcp',
+      url,
+      data,
+      timestamp: new Date(),
+      success,
+      error,
+      metadata: {
+        userAgent: data.userAgent,
+        viewport: data.viewport,
+        fingerprint: data.fingerprint
+      }
+    };
+
+    return this.saveModuleData(moduleData);
+  }
+
+  /**
+   * Guardar datos específicos de Scraperr
+   */
+  async saveScaperrData(data: any, url: string, success: boolean, error?: string): Promise<void> {
+    const moduleData: ModuleData = {
+      module: 'scraperr',
+      url,
+      data,
+      timestamp: new Date(),
+      success,
+      error,
+      metadata: {
+        selectors: data.selectors,
+        itemCount: Array.isArray(data.items) ? data.items.length : 0
+      }
+    };
+
+    return this.saveModuleData(moduleData);
+  }
+
+  /**
+   * Guardar datos específicos de DeepScrape
+   */
+  async saveDeepScrapeData(data: any, url: string, success: boolean, error?: string): Promise<void> {
+    const moduleData: ModuleData = {
+      module: 'deepscrape',
+      url,
+      data,
+      timestamp: new Date(),
+      success,
+      error,
+      metadata: {
+        elements: data.elements,
+        depth: data.depth,
+        extractedCount: data.extractedCount
+      }
+    };
+
+    return this.saveModuleData(moduleData);
+  }
+
+  /**
+   * Listar datos por módulo específico
+   */
+  async listModuleData(module: string, limit: number = 50): Promise<ModuleData[]> {
+    if (!this.isAvailable) {
+      return [];
+    }
+
+    try {
+      const prefix = `extraction/${module}/`;
+      const objects = this.client.listObjects(this.bucket, prefix, true);
+      const results: ModuleData[] = [];
+      let count = 0;
+
+      for await (const obj of objects) {
+        if (count >= limit) break;
+
+        try {
+          const data = await this.client.getObject(this.bucket, obj.name!);
+          const chunks: Buffer[] = [];
+
+          for await (const chunk of data) {
+            chunks.push(chunk);
+          }
+
+          const content = Buffer.concat(chunks).toString();
+          const moduleData = JSON.parse(content) as ModuleData;
+          results.push(moduleData);
+          count++;
+        } catch (error) {
+          console.error(`Error leyendo datos del módulo ${module}:`, error);
+        }
+      }
+
+      return results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } catch (error) {
+      console.error(`Error listando datos del módulo ${module}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Obtener estadísticas por módulo
+   */
+  async getModuleStats(module: string): Promise<{
+    totalExtractions: number;
+    successfulExtractions: number;
+    failedExtractions: number;
+    successRate: number;
+    lastExtraction?: Date;
+  }> {
+    if (!this.isAvailable) {
+      return {
+        totalExtractions: 0,
+        successfulExtractions: 0,
+        failedExtractions: 0,
+        successRate: 0
+      };
+    }
+
+    try {
+      const data = await this.listModuleData(module, 1000);
+      const total = data.length;
+      const successful = data.filter(d => d.success).length;
+      const failed = total - successful;
+      const successRate = total > 0 ? (successful / total) * 100 : 0;
+      const lastExtraction = data.length > 0 ? new Date(data[0].timestamp) : undefined;
+
+      return {
+        totalExtractions: total,
+        successfulExtractions: successful,
+        failedExtractions: failed,
+        successRate: Math.round(successRate * 100) / 100,
+        lastExtraction
+      };
+    } catch (error) {
+      console.error(`Error obteniendo estadísticas del módulo ${module}:`, error);
+      return {
+        totalExtractions: 0,
+        successfulExtractions: 0,
+        failedExtractions: 0,
+        successRate: 0
+      };
     }
   }
 

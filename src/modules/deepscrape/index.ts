@@ -2,6 +2,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { MinioStorage } from '../minio';
 
 export interface DeepscrapeConfig {
   externalPath: string;
@@ -32,9 +33,11 @@ export interface DeepscrapeResult {
 export class DeepscrapeHook {
   private config: DeepscrapeConfig;
   private isAvailable: boolean = false;
+  private minio: MinioStorage;
 
   constructor(config: DeepscrapeConfig) {
     this.config = config;
+    this.minio = new MinioStorage();
     this.checkAvailability();
   }
 
@@ -94,33 +97,93 @@ export class DeepscrapeHook {
         errorOutput += data.toString();
       });
 
-      childProcess.on('close', (code: number | null) => {
+      childProcess.on('close', async (code: number | null) => {
         if (code === 0) {
           try {
             const data = JSON.parse(output);
-            resolve({
+            const result = {
               url: request.pageUrl,
               data,
               timestamp: new Date(),
               success: true
-            });
+            };
+
+            // Guardar datos automáticamente en MinIO
+            try {
+              await this.minio.saveDeepScrapeData(
+                {
+                  elements: request.elements,
+                  extractedData: data,
+                  extractedCount: Array.isArray(data) ? data.length : 0,
+                  depth: request.elements.length,
+                  waitForSelector: request.waitForSelector,
+                  timeout: request.timeout
+                },
+                request.pageUrl,
+                true
+              );
+            } catch (minioError) {
+              console.error('Error guardando datos de deepscrape en MinIO:', minioError);
+            }
+
+            resolve(result);
           } catch (e) {
-            resolve({
+            const result = {
               url: request.pageUrl,
               data: [],
               timestamp: new Date(),
               success: false,
               error: 'Invalid response format'
-            });
+            };
+
+            // Guardar error en MinIO
+            try {
+              await this.minio.saveDeepScrapeData(
+                {
+                  elements: request.elements,
+                  extractedData: [],
+                  extractedCount: 0,
+                  depth: request.elements.length,
+                  error: 'Invalid response format'
+                },
+                request.pageUrl,
+                false,
+                'Invalid response format'
+              );
+            } catch (minioError) {
+              console.error('Error guardando error de deepscrape en MinIO:', minioError);
+            }
+
+            resolve(result);
           }
         } else {
-          resolve({
+          const result = {
             url: request.pageUrl,
             data: [],
             timestamp: new Date(),
             success: false,
             error: `Deepscrape failed: ${errorOutput}`
-          });
+          };
+
+          // Guardar error en MinIO
+          try {
+            await this.minio.saveDeepScrapeData(
+              {
+                elements: request.elements,
+                extractedData: [],
+                extractedCount: 0,
+                depth: request.elements.length,
+                error: errorOutput
+              },
+              request.pageUrl,
+              false,
+              `Deepscrape failed: ${errorOutput}`
+            );
+          } catch (minioError) {
+            console.error('Error guardando error de deepscrape en MinIO:', minioError);
+          }
+
+          resolve(result);
         }
       });
 

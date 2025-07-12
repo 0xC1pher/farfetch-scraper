@@ -1,0 +1,20 @@
+# Excluir directorios externos de la compilación de Next.js
+external/
+external/**/*
+external/browser-mcp/**/*
+external/deepscrape/**/*
+external/scraperr/**/*
+
+# Excluir node_modules de los externos
+external/*/node_modules/
+external/*/node_modules/**/*
+
+# Excluir archivos de distribución
+external/*/dist/
+external/*/dist/**/*
+
+# Excluir archivos de configuración de los externos
+external/*/tsconfig.json
+external/*/package.json
+external/*/package-lock.json
+external/*/pnpm-lock.yaml

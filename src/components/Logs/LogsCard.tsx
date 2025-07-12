@@ -1,40 +1,54 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Maximize2, Minimize2, Download, Trash2 } from 'lucide-react';
+import { X, Maximize2, Minimize2, Download, Trash2, Pause, Play, RefreshCw } from 'lucide-react';
 
 interface LogEntry {
+  id: string;
   timestamp: string;
-  level: 'info' | 'warn' | 'error' | 'debug';
+  level: 'info' | 'warn' | 'error' | 'debug' | 'success';
   module: string;
   message: string;
+  details?: any;
 }
 
 interface LogsCardProps {
-  logs: LogEntry[];
-  onClearLogs: () => void;
-  onExportLogs: () => void;
   onClose: () => void;
   onToggleExpand: () => void;
   isExpanded: boolean;
 }
 
-export default function LogsCard({ 
-  logs, 
-  onClearLogs, 
-  onExportLogs, 
-  onClose, 
+export default function LogsCard({
+  onClose,
   onToggleExpand,
-  isExpanded 
+  isExpanded
 }: LogsCardProps) {
-  const logsEndRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const [filter, setFilter] = useState('');
-  const [levelFilter, setLevelFilter] = useState<string>('all');
+  const [levelFilter, setLevelFilter] = useState('all');
+  const [moduleFilter, setModuleFilter] = useState('all');
+  const [isStreaming, setIsStreaming] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  const [stats, setStats] = useState<any>({});
 
+  const logsEndRef = useRef<HTMLDivElement>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new logs arrive (only if user hasn't scrolled up)
   useEffect(() => {
-    if (autoScroll && logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (shouldAutoScrollRef.current) {
+      logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [logs, autoScroll]);
+  }, [logs]);
+
+  // Detectar si el usuario ha hecho scroll hacia arriba
+  const handleScroll = () => {
+    if (logsContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = logsContainerRef.current;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
+      shouldAutoScrollRef.current = isAtBottom;
+    }
+  };
 
   const getLogLevelClass = (level: string) => {
     switch (level) {
