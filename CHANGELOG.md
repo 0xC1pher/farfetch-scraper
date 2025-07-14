@@ -1,272 +1,304 @@
-# Changelog
+# 🤖 MeXa Telegram Bot - Guía de Integración Completa
 
-Todos los cambios notables en este proyecto serán documentados en este archivo.
+## 🎯 Integración del Bot con el Sistema MeXa
 
-El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/),
-y este proyecto adhiere a [Versionado Semántico](https://semver.org/spec/v2.0.0.html).
+El bot de Telegram de MeXa está diseñado para interactuar directamente con los datos extraídos por los módulos del sistema (Browser-MCP, Scraperr, DeepScrape) y presentarlos a los usuarios de manera intuitiva.
 
-## [1.0.0] - 2025-07-11 🚀 RELEASE MAYOR
+---
 
-### ✅ COMPLETADO - Componentes Core Críticos
+## 🚀 Configuración Rápida del Bot
 
-#### Añadido
-- **API REST Completa** - Sistema de endpoints funcionales
-  - `/api/auth/login` - Autenticación con Farfetch
-  - `/api/sessions/{id}` - Gestión de sesiones (GET, DELETE)
-  - `/api/scraping/start` - Inicio de procesos de scraping con filtros
-  - `/api/offers/latest` - Recuperación de ofertas con filtros avanzados
-  - `/api/proxies/status` - Estado y rotación de proxies (GET, POST)
-  - `/api/health` - Health check completo del sistema
-  - `/api/docs` - Documentación Swagger/OpenAPI automática
-  - Middleware completo: CORS, rate limiting, validación, logging, manejo de errores
+### Paso 1: Crear el Bot en Telegram
+1. Abre la aplicación de **Telegram** o accede desde la web.
+2. Busca el contacto [@BotFather](https://t.me/BotFather) (este es un bot oficial de Telegram para crear nuevos bots).
+3. Envía el comando `/newbot` al @BotFather.
+4. Sigue las instrucciones:
+   - Elige un nombre para tu bot (por ejemplo, "MeXa Shopping Bot").
+   - Elige un nombre de usuario único que termine en "bot" (por ejemplo, "mexashoppingbot").
+5. Al finalizar, @BotFather te proporcionará un **token de acceso**, algo como `1234567890:ABCdefGHIjklMNOpqrstUVWxyz`.
 
-- **Motor de Workflows Ejecutable** - Sistema YAML completamente funcional
-  - Ejecutor de workflows con soporte completo para archivos YAML
-  - 4 workflows implementados y probados:
-    - `auth-flow.yaml` - Flujo de autenticación
-    - `scraping-flow.yaml` - Flujo completo de scraping
-    - `proxy-rotation.yaml` - Gestión de proxies
-    - `monitoring.yaml` - Monitoreo del sistema
-  - API de workflows: `/api/workflows/execute`, `/api/workflows/{id}`, `/api/workflows/list`
-  - Sistema de reintentos, timeouts, condiciones y manejo de errores
-  - Test runner completo: `npm run workflow:test`
+### Paso 2: Configurar Variables de Entorno en MeXa
 
-- **Telegram Bot Completo** - Interfaz principal para usuarios finales
-  - Bot interactivo con comandos completos:
-    - `/start` - Bienvenida e introducción
-    - `/help` - Guía de uso detallada
-    - `/ofertas` - Catálogo de ofertas con filtros
-    - `/login` - Configuración de credenciales
-    - `/filtros` - Configuración de filtros avanzados
-    - `/estado` - Estado del sistema en tiempo real
-  - Sistema de sesiones de usuario con persistencia automática
-  - Catálogos interactivos con botones y navegación
-  - Filtros avanzados: precio min/max, marca, descuento, categoría
-  - Integración completa con orquestador y workflows
-  - Servidor del bot con gestión de procesos: `npm run bot`
+Agrega las siguientes variables a tu archivo `.env`:
 
-#### Mejorado
-- **Orquestador Principal** - Funcionalidades extendidas
-  - Guardado automático de datos de scraping en MinIO
-  - Integración con API para persistencia de resultados
-  - Logging detallado y manejo robusto de errores
-  - Soporte para filtros en tiempo real
+```bash
+# Configuración del Bot de Telegram
+TELEGRAM_BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrstUVWxyz
+TELEGRAM_ADMIN_CHAT_IDS=123456789,987654321  # IDs de administradores
+MAX_OFFERS_PER_MESSAGE=10                     # Máximo ofertas por mensaje
+DEFAULT_MAX_PRICE=1000                        # Precio máximo por defecto (€)
+DEFAULT_MIN_DISCOUNT=0                        # Descuento mínimo por defecto (%)
 
-- **MinIO Storage** - Capacidades ampliadas
-  - Método `getScrapingData()` para API
-  - Almacenamiento optimizado de resultados de scraping
-  - Consultas eficientes con filtrado y ordenamiento
-  - Gestión automática de metadatos
+# Configuración de Farfetch (para autenticación)
+FF_EMAIL=tu_email@example.com
+FF_PASSWORD=tu_password_segura
+```
 
-- **Sistema de Pruebas** - Cobertura completa y robusta
-  - 34 pruebas unitarias e integración (100% pasando)
-  - Corrección crítica de prueba de integración del orquestador
-  - Mocking avanzado para dependencias externas
-  - Validación de todos los flujos críticos
+### Paso 3: Iniciar el Bot Integrado con MeXa
 
-#### Infraestructura
-- **Scripts de Desarrollo**
-  - `npm run bot` - Ejecutar bot de Telegram
-  - `npm run bot:dev` - Bot en modo desarrollo con watch
-  - `npm run workflow:test` - Testing completo de workflows
-  - Configuración completa en `.env.example`
+```bash
+# Opción 1: Iniciar bot junto con el sistema completo
+npm run dev
 
-- **Dependencias Agregadas**
-  - `js-yaml` ^3.14.1 - Procesamiento de workflows YAML
-  - `node-telegram-bot-api` ^0.66.0 - API de Telegram
-  - `tsx` ^4.20.3 - Ejecución de TypeScript
-  - `dotenv` ^16.6.1 - Gestión de variables de entorno
+# Opción 2: Iniciar solo el bot (en desarrollo)
+npm run bot:dev
 
-- **Documentación Completa**
-  - Documentación Swagger/OpenAPI detallada (6 endpoints)
-  - Guías de uso para API, workflows y bot
-  - Documentación exhaustiva de testing y resultados
-  - Análisis completo de componentes y arquitectura
+# Opción 3: Iniciar bot en producción
+npm run bot
+```
 
-### Cambiado
-- **Arquitectura del Sistema** - Evolución a sistema completo
-  - Migración de base técnica a aplicación funcional completa
-  - Integración total entre todos los componentes
-  - Flujo de datos optimizado end-to-end
-  - Estructura de proyecto lista para producción
+---
 
-### Corregido
-- **Pruebas de Integración** - Fixes críticos
-  - Corrección de prueba de integración del orquestador
-  - Resolución de problemas de mocking con dependencias externas
-  - Fix de imports y dependencias circulares
-  - Estabilización de todas las pruebas
+## 🔄 Flujo de Interacción Bot ↔ Sistema MeXa
 
-### Seguridad
-- **Protección de API** - Implementación completa
-  - Rate limiting configurado (10-100 requests por ventana)
-  - Validación estricta de esquemas en todos los endpoints
-  - Sanitización automática de datos sensibles
-  - Manejo seguro de credenciales y sesiones
+### 📊 Diagrama de Flujo de Datos
 
-## [0.2.1] - 2025-07-10
-### Añadido
-- **Pruebas Unitarias**: Se añadieron pruebas unitarias para los módulos `Orchestrator`, `ScraperrHook`, `DeepscrapeHook` y `MinioStorage`.
-- **Pruebas de Integración para ProxyManager**: Se creó una suite de pruebas más completa para el `ProxyManager`, cubriendo estrategias de rotación, desactivación de proxies y ciclos de validación.
-- **Estrategia de Rotación Aleatoria**: Se implementó la estrategia de rotación `random` en el `ProxyManager`.
+```mermaid
+graph TD
+    A[👤 Usuario envía /ofertas] --> B[🤖 Bot de Telegram]
+    B --> C[🎛️ Orquestador MeXa]
+    C --> D{¿Sesión válida?}
 
-### Cambiado
-- **Refactorización de Estrategias de Proxy**: Se mejoró la interfaz `ProxyRotationStrategy` y se simplificó la implementación de `RoundRobinStrategy`.
+    D -->|❌ No| E[🌐 Browser-MCP]
+    E --> F[🔐 Login + Fingerprint]
+    F --> G[💾 Guardar en MinIO]
 
-## [0.2.0] - 2025-07-09
-### Añadido
-- Documentación detallada de la arquitectura del sistema
-- Guía de instalación y configuración
-- Ejemplos de uso y casos prácticos
-- Documentación de la API
+    D -->|✅ Sí| H[🕷️ Scraperr]
+    G --> H
+    H --> I{¿Datos extraídos?}
 
-### Infraestructura
-- Configuración de Docker para despliegue local
-- Manifiestos de Kubernetes para producción
-- Configuración de Helm para despliegues gestionados
-- Workflows YAML para orquestación de tareas
+    I -->|❌ No| J[🤖 DeepScrape]
+    I -->|✅ Sí| K[📊 Procesar ofertas]
+    J --> K
 
-### Documentación
-- README.md completamente actualizado
-- Documentación de módulos principales
-- Guías de contribución
-- Ejemplos de configuración
+    K --> L[🗄️ Guardar en MinIO]
+    L --> M[📱 Generar carrusel]
+    M --> N[📤 Enviar a usuario]
 
-## [0.1.1] - 2025-07-09
-### Actualizado
-- Actualizado `axios` a la versión 1.6.2
-- Actualizado `@types/node` a la versión 20.11.0
+    O[📈 Logs en tiempo real] --> P[🖥️ Panel Admin]
+    C --> O
+    E --> O
+    H --> O
+    J --> O
+```
 
-### Módulo Proxy Manager
-#### Actualizado
-- Implementado `ProxyScrapeProvider` con soporte para HTTP, SOCKS4 y SOCKS5
-- Mejorado el manejo de tipos en el sistema de proxies
-- Optimizado el sistema de caché de agentes de proxy
-- Añadida validación de proxies con manejo de errores mejorado
-- Actualizada la documentación del módulo
+---
 
-#### Corregido
-- Solucionados problemas de tipos con axios y los agentes de proxy
-- Corregido el manejo de configuraciones de proxy en las peticiones HTTP
+## 🎮 Comandos Disponibles del Bot
 
-### Módulo Core
-- [x] Proxy Manager Service (Fase 2 - En Desarrollo)
-  - [x] Implementación básica
-  - [x] Integración con proveedores de proxy
-  - [x] Rotación Round Robin
-  - [ ] Sistema de puntuación de proxies
-  - [ ] Balanceo por latencia
-  - [x] Pruebas unitarias
-  - [ ] Documentación detallada
-  - [ ] Monitoreo en tiempo real
+### 📱 Comandos Principales
 
-### Infraestructura Base
-- [ ] Configurar Kubernetes cluster
-- [ ] Implementar CI/CD con GitOps
-- [ ] Configurar VPC y redes privadas
-- [ ] Configurar almacenamiento distribuido
-- [ ] Configurar balanceo de carga
-- [x] Sistema de validación de proxies (Básico)
-- [ ] Motor de puntuación avanzado
-- [ ] Sistema de alertas proactivas
-- [ ] Sistema de rotación automática
-- [ ] Balanceador de carga inteligente
+| Comando | Descripción | Ejemplo |
+|---------|-------------|---------|
+| `/start` | Iniciar bot y mostrar bienvenida | `/start` |
+| `/ofertas` | Buscar ofertas de Farfetch | `/ofertas` |
+| `/filtros` | Configurar filtros personalizados | `/filtros` |
+| `/favoritos` | Ver productos favoritos | `/favoritos` |
+| `/perfil` | Ver configuración personal | `/perfil` |
+| `/help` | Mostrar ayuda y comandos | `/help` |
+| `/status` | Estado del sistema (solo admins) | `/status` |
 
-### API
-- [ ] Endpoints RESTful
-- [ ] WebSocket para actualizaciones
-- [ ] Sistema de autenticación
-- [ ] Rate limiting
-- [ ] Documentación Swagger/OpenAPI
+### 🔧 Comandos de Administración
 
-### Frontend
-- [ ] Panel de administración
-- [ ] Dashboard en tiempo real
-- [ ] Gestión de proxies
-- [ ] Sistema de alertas
-- [ ] Reportes y análisis
+| Comando | Descripción | Solo Admins |
+|---------|-------------|-------------|
+| `/stats` | Estadísticas del sistema | ✅ |
+| `/logs` | Ver logs recientes | ✅ |
+| `/restart` | Reiniciar módulos | ✅ |
+| `/broadcast` | Mensaje a todos los usuarios | ✅ |
 
-### Seguridad
-- [ ] WAF y protección DDoS
-- [ ] Cifrado de datos
-- [ ] Gestión de secretos
-- [ ] Auditoría de seguridad
-- [ ] Cumplimiento normativo
+---
 
-### Monitoreo
-- [ ] Métricas en tiempo real
-- [ ] Sistema de alertas
-- [ ] Logging centralizado
-- [ ] Trazabilidad distribuida
-- [ ] Dashboards ejecutivos
+## 📊 Integración con Datos del Sistema MeXa
 
-### Pruebas
-- [x] Unitarias
-- [x] Integración
-- [ ] Carga
-- [ ] Seguridad
-- [ ] Recuperación
+### 🗄️ Fuentes de Datos
 
-## [No Publicado]
+El bot consume datos directamente de MinIO organizados por módulos:
 
-### Agregado
-- Archivo CHANGELOG.md para documentar cambios en el proyecto
-- Estructura inicial del changelog siguiendo Keep a Changelog
-- Módulo de fingerprinting con generación aleatoria de huellas digitales
-- Soporte para rotación de fingerprint con diferentes niveles (bajo, medio, alto)
-- Implementación de Browser MCP Hook para integración con repos externos
-- Implementación de Scraperr Hook para integración con repos externos
-- Implementación de Deepscrape Hook para integración con repos externos
-- Sistema de gestión de sesiones con persistencia en MinIO
-- Integración con repos externos (browser-mcp, scraperr, deepscrape)
-- Scripts de configuración y actualización de repos externos
-- Orquestador robusto para coordinar módulos desacoplados
-- Sistema de logging y manejo de errores centralizado
-- Sistema de fallback automático entre scraperr y deepscrape
+```typescript
+// Estructura de datos que consume el bot
+interface TelegramOffer {
+  id: string;
+  precio: number;
+  referencia: string;
+  categoria: 'niño' | 'hombre' | 'mujer' | 'unisex';
+  cantidadDisponible: number;
+  estatus: 'disponible' | 'agotado' | 'limitado';
+  imagenes: TelegramImage[];
+  marca: string;
+  descripcion: string;
+  tallas: string[];
+  colores: string[];
+  descuento?: number;
+  fechaCreacion: string;
+  fuente: 'browser-mcp' | 'scraperr' | 'deepscrape'; // ← Módulo que extrajo los datos
+}
+```
 
-### Cambiado
-- Reorganización de la arquitectura para usar repos externos + hooks
-- Refactorización completa del módulo Browser MCP para usar hook pattern
-- Refactorización completa del módulo Scraperr para usar hook pattern
-- Refactorización completa del módulo Deepscrape para usar hook pattern
-- Mejora en la gestión de dependencias y configuración
-- Actualización de la estructura de directorios para mejor escalabilidad
+### 🔄 Flujo de Procesamiento de Datos
 
-### Corregido
-- Errores críticos de TypeScript en módulo Browser MCP
-- Errores críticos de TypeScript en módulo Scraperr
-- Errores críticos de TypeScript en módulo Deepscrape
-- Problemas de imports y tipos en configuración
-- Corrupción de archivos durante refactorización
-- Dependencias circulares entre módulos
-- Import incorrecto de Deepscrape en Scraperr
-- Método waitForTimeout no existente en Puppeteer
+```mermaid
+graph LR
+    A[🗄️ MinIO: extraction/] --> B[📊 Procesador de Ofertas]
+    B --> C[🎨 Generador de Carrusel]
+    C --> D[📱 Telegram Mini App]
 
-### Eliminado
-- Código legacy y duplicado entre módulos
-- Acoplamiento directo entre implementaciones de módulos
-- Archivos temporales y mocks innecesarios
-- Dependencias directas de Puppeteer en hooks
+    E[🌐 Browser-MCP] --> F[extraction/browser-mcp/]
+    G[🕷️ Scraperr] --> H[extraction/scraperr/]
+    I[🤖 DeepScrape] --> J[extraction/deepscrape/]
 
-## [0.2.0] - 2025-07-09
+    F --> A
+    H --> A
+    J --> A
+```
 
-### Agregado
-- Sistema de gestión de proxies de nivel empresarial
-- Documentación técnica detallada
-- Arquitectura cloud-native
-- Sistema de seguimiento de desarrollo
-- Plan de implementación por fases
+### 📱 Mini App Telegram Integrada
 
-### Cambiado
-- Actualizada la arquitectura para soportar alta disponibilidad
-- Mejorado el sistema de logging
-- Optimizado el manejo de conexiones
+El bot incluye una **Mini App** estilo Tinder para navegar ofertas:
 
-## [0.1.0] - 2024-06-08
+**Características:**
+- ✅ **Carrusel interactivo** con gestos swipe
+- ✅ **Imágenes optimizadas** 375x667px para móviles
+- ✅ **Filtros en tiempo real** por precio, marca, categoría
+- ✅ **Sistema de favoritos** persistente en MinIO
+- ✅ **Datos actualizados** desde todos los módulos de extracción
 
-### Agregado
-- Estructura inicial del proyecto
-- Configuración base de TypeScript y Next.js
-- Módulos base para Browser MCP, Scraperr, Deepscrape y MinIO
-- UI básica con componentes Svelte
-- Endpoints API iniciales
+**Acceso:**
+```bash
+# URL de la Mini App (se configura automáticamente)
+https://tu-dominio.com/telegram-app
+
+# O localmente para desarrollo:
+http://localhost:3000/telegram-app
+```
+
+---
+
+## 🔧 APIs del Bot Integradas con MeXa
+
+### 📡 Endpoints Específicos del Bot
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/api/telegram/offers` | GET | Obtener ofertas formateadas para Telegram |
+| `/api/telegram/favorites` | GET/POST/DELETE | Gestionar favoritos por usuario |
+| `/api/telegram/user-profile` | GET/PUT | Perfil y configuración de usuario |
+| `/api/telegram/stats` | GET | Estadísticas de uso del bot |
+| `/api/bot/status` | GET | Estado del bot y conexión |
+
+### 🎯 Ejemplo de Uso de APIs
+
+```typescript
+// Obtener ofertas para un usuario específico
+GET /api/telegram/offers?chatId=123456789&limit=10&filters={"maxPrice":500}
+
+// Respuesta:
+{
+  "success": true,
+  "offers": [
+    {
+      "id": "offer_001",
+      "precio": 299.99,
+      "referencia": "FAR123456",
+      "categoria": "hombre",
+      "marca": "Gucci",
+      "imagenes": [
+        {
+          "url": "https://cdn.farfetch.com/...",
+          "width": 375,
+          "height": 667,
+          "optimized": true
+        }
+      ],
+      "fuente": "scraperr", // ← Indica qué módulo extrajo estos datos
+      "fechaCreacion": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "totalCount": 150,
+  "hasMore": true
+}
+```
+
+---
+
+## 🧪 Probar el Bot Completo
+
+### Paso 1: Configuración Completa
+```bash
+# 1. Configurar variables de entorno
+cp .env.example .env
+# Editar .env con tu TELEGRAM_BOT_TOKEN
+
+# 2. Iniciar sistema completo
+npm run dev
+
+# 3. Iniciar bot (en otra terminal)
+npm run bot:dev
+```
+
+### Paso 2: Probar Funcionalidades
+```bash
+# 1. Buscar tu bot en Telegram: @tu_bot_username
+# 2. Enviar comando: /start
+# 3. Probar comando: /ofertas
+# 4. Verificar que aparezcan datos extraídos por los módulos
+# 5. Probar Mini App desde el botón inline
+```
+
+### Paso 3: Verificar Integración
+```bash
+# Verificar que el bot recibe datos de todos los módulos:
+curl http://localhost:3000/api/telegram/offers
+
+# Verificar estado del bot:
+curl http://localhost:3000/api/bot/status
+
+# Ver logs del bot en tiempo real:
+# Panel Admin → Logs → Filtrar por "Telegram Bot"
+```
+
+---
+
+## 🎯 Resultado Final
+
+**El bot de Telegram ahora:**
+- ✅ **Consume datos** de todos los módulos (Browser-MCP, Scraperr, DeepScrape)
+- ✅ **Presenta ofertas** en formato carrusel interactivo
+- ✅ **Mantiene favoritos** persistentes en MinIO
+- ✅ **Filtra contenido** según preferencias del usuario
+- ✅ **Integra Mini App** estilo Tinder para navegación móvil
+- ✅ **Proporciona estadísticas** de uso y rendimiento
+- ✅ **Funciona en tiempo real** con datos actualizados
+
+### 📱 Experiencia del Usuario Final
+
+1. **Usuario envía** `/ofertas` al bot
+2. **Sistema extrae** datos usando Browser-MCP → Scraperr → DeepScrape
+3. **Bot procesa** y formatea ofertas desde MinIO
+4. **Usuario recibe** carrusel interactivo con ofertas reales
+5. **Usuario navega** con gestos swipe en Mini App
+6. **Favoritos se guardan** automáticamente en el sistema
+
+---
+
+## 🤝 Soporte y Desarrollo
+
+¿Necesitas ayuda específica con alguna parte del proceso?
+
+**Recursos disponibles:**
+- 📖 **Documentación completa**: `README.md`
+- 🔧 **APIs documentadas**: Panel Admin → APIs
+- 📊 **Logs en tiempo real**: Panel Admin → Logs
+- 🗄️ **Datos en MinIO**: Console MinIO (puerto 9003)
+
+**Comandos útiles:**
+```bash
+# Ver logs del bot
+npm run bot:dev
+
+# Verificar estado del sistema
+curl http://localhost:3000/api/system/status
+
+# Acceder al panel de administración
+http://localhost:3000/admin
+```

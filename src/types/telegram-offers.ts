@@ -11,23 +11,26 @@ export interface TelegramOffer {
   cantidadDisponible: number;
   estatus: 'disponible' | 'agotado' | 'limitado';
   imagenes: TelegramImage[];
-  titulo: string;
+  titulo?: string;
   marca: string;
   descripcion?: string;
-  url: string;
+  url?: string;
   descuento?: number;
   tallas?: string[];
   colores?: string[];
-  timestamp: Date;
+  timestamp?: Date;
+  fechaCreacion: string; // ISO string para compatibilidad
+  fuente: 'browser-mcp' | 'scraperr' | 'deepscrape' | 'telegram';
 }
 
 export interface TelegramImage {
-  id: string;
+  id?: string;
   url: string;
   width: number;
   height: number;
   alt?: string;
-  isMain: boolean;
+  isMain?: boolean;
+  optimized?: boolean; // Para imágenes optimizadas para móvil
 }
 
 export interface TelegramCarousel {

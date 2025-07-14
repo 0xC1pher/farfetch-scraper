@@ -79,27 +79,229 @@ export class TelegramOffersService {
   }
 
   /**
-   * Obtener ofertas más recientes de MinIO
+   * Obtener ofertas más recientes de MinIO integrando datos de todos los módulos
    */
   private async getLatestOffers(): Promise<TelegramOffer[]> {
     try {
+      console.log('🔍 Obteniendo ofertas de todos los módulos...');
+
+      // Obtener datos de todos los módulos de extracción
+      const [browserMcpData, scaperrData, deepscrapeData, telegramOffers] = await Promise.all([
+        minioStorage.listModuleData('browser-mcp', 20).catch(() => []),
+        minioStorage.listModuleData('scraperr', 20).catch(() => []),
+        minioStorage.listModuleData('deepscrape', 20).catch(() => []),
+        this.getStoredTelegramOffers().catch(() => [])
+      ]);
+
+      const offers: TelegramOffer[] = [];
+
+      // Procesar datos de Scraperr (productos directos)
+      for (const item of scaperrData) {
+        if (item.data && Array.isArray(item.data.items)) {
+          for (const product of item.data.items) {
+            const offer = this.convertScaperrToTelegramOffer(product, item);
+            if (offer) offers.push(offer);
+          }
+        }
+      }
+
+      // Procesar datos de DeepScrape (elementos extraídos por IA)
+      for (const item of deepscrapeData) {
+        if (item.data && Array.isArray(item.data.extractedData)) {
+          for (const extracted of item.data.extractedData) {
+            const offer = this.convertDeepScrapeToTelegramOffer(extracted, item);
+            if (offer) offers.push(offer);
+          }
+        }
+      }
+
+      // Procesar datos de Browser-MCP (sesiones con productos)
+      for (const item of browserMcpData) {
+        if (item.data && item.data.products) {
+          for (const product of item.data.products) {
+            const offer = this.convertBrowserMcpToTelegramOffer(product, item);
+            if (offer) offers.push(offer);
+          }
+        }
+      }
+
+      // Agregar ofertas almacenadas directamente en telegram/offers/
+      offers.push(...telegramOffers);
+
+      // Eliminar duplicados por referencia
+      const uniqueOffers = this.removeDuplicateOffers(offers);
+
+      // Ordenar por fecha de creación (más recientes primero)
+      uniqueOffers.sort((a, b) =>
+        new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+      );
+
+      console.log(`✅ ${uniqueOffers.length} ofertas obtenidas de módulos:`, {
+        'browser-mcp': browserMcpData.length,
+        'scraperr': scaperrData.length,
+        'deepscrape': deepscrapeData.length,
+        'telegram': telegramOffers.length,
+        'total_unique': uniqueOffers.length
+      });
+
+      return uniqueOffers.length > 0 ? uniqueOffers : this.getMockOffers();
+    } catch (error) {
+      console.warn('⚠️ Error cargando ofertas de módulos, usando datos mock:', error);
+      return this.getMockOffers();
+    }
+  }
+
+  /**
+   * Obtener ofertas almacenadas directamente en telegram/offers/
+   */
+  private async getStoredTelegramOffers(): Promise<TelegramOffer[]> {
+    try {
       const objects = await minioStorage.listObjects('telegram/offers/');
-      
+
       if (objects.length === 0) {
-        return this.getMockOffers(); // Fallback a datos mock
+        return [];
       }
 
       // Obtener el archivo más reciente
-      const latestObject = objects.sort((a, b) => 
+      const latestObject = objects.sort((a, b) =>
         new Date(b.lastModified || 0).getTime() - new Date(a.lastModified || 0).getTime()
       )[0];
 
       const data = await minioStorage.loadData(latestObject.name);
       return data.offers || [];
     } catch (error) {
-      console.warn('⚠️ Error cargando ofertas de MinIO, usando datos mock:', error);
-      return this.getMockOffers();
+      console.warn('⚠️ Error cargando ofertas de telegram/offers/:', error);
+      return [];
     }
+  }
+
+  /**
+   * Convertir datos de Scraperr a oferta de Telegram
+   */
+  private convertScaperrToTelegramOffer(product: any, item: any): TelegramOffer | null {
+    try {
+      return {
+        id: `scraperr_${product.id || Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        precio: parseFloat(product.price) || 0,
+        referencia: product.reference || product.id || 'N/A',
+        categoria: this.mapCategory(product.category),
+        cantidadDisponible: product.stock || 1,
+        estatus: product.available !== false ? 'disponible' : 'agotado',
+        imagenes: [{
+          url: product.image || '/assets/placeholder.jpg',
+          width: 375,
+          height: 667,
+          optimized: true
+        }],
+        marca: product.brand || 'Unknown',
+        titulo: product.title || product.name || 'Producto extraído por Scraperr',
+        descripcion: product.description || product.desc,
+        tallas: Array.isArray(product.sizes) ? product.sizes : [],
+        colores: Array.isArray(product.colors) ? product.colors : [],
+        descuento: product.discount || 0,
+        fechaCreacion: item.timestamp || new Date().toISOString(),
+        fuente: 'scraperr'
+      };
+    } catch (error) {
+      console.warn('Error converting scraperr product:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Convertir datos de DeepScrape a oferta de Telegram
+   */
+  private convertDeepScrapeToTelegramOffer(extracted: any, item: any): TelegramOffer | null {
+    try {
+      const data = extracted.data || extracted;
+
+      return {
+        id: `deepscrape_${extracted.extractedBy || Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        precio: parseFloat(data.price || data.precio) || 0,
+        referencia: data.reference || data.ref || 'N/A',
+        categoria: this.mapCategory(data.category || data.categoria),
+        cantidadDisponible: data.stock || data.cantidad || 1,
+        estatus: data.available !== false ? 'disponible' : 'agotado',
+        imagenes: [{
+          url: data.image || data.imagen || '/assets/placeholder.jpg',
+          width: 375,
+          height: 667,
+          optimized: true
+        }],
+        marca: data.brand || data.marca || 'Unknown',
+        titulo: data.title || data.name || data.descripcion || 'Producto extraído por IA',
+        descripcion: data.description || data.desc,
+        tallas: Array.isArray(data.sizes || data.tallas) ? (data.sizes || data.tallas) : [],
+        colores: Array.isArray(data.colors || data.colores) ? (data.colors || data.colores) : [],
+        descuento: data.discount || data.descuento || 0,
+        fechaCreacion: item.timestamp || new Date().toISOString(),
+        fuente: 'deepscrape'
+      };
+    } catch (error) {
+      console.warn('Error converting deepscrape data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Convertir datos de Browser-MCP a oferta de Telegram
+   */
+  private convertBrowserMcpToTelegramOffer(product: any, item: any): TelegramOffer | null {
+    try {
+      return {
+        id: `browser-mcp_${product.id || Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+        precio: parseFloat(product.price) || 0,
+        referencia: product.reference || 'N/A',
+        categoria: this.mapCategory(product.category),
+        cantidadDisponible: product.stock || 1,
+        estatus: 'disponible',
+        imagenes: [{
+          url: product.image || '/assets/placeholder.jpg',
+          width: 375,
+          height: 667,
+          optimized: true
+        }],
+        marca: product.brand || 'Unknown',
+        titulo: product.title || 'Producto de sesión autenticada',
+        descripcion: product.description || product.desc,
+        tallas: Array.isArray(product.sizes) ? product.sizes : [],
+        colores: Array.isArray(product.colors) ? product.colors : [],
+        descuento: product.discount || 0,
+        fechaCreacion: item.timestamp || new Date().toISOString(),
+        fuente: 'browser-mcp'
+      };
+    } catch (error) {
+      console.warn('Error converting browser-mcp product:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Mapear categoría a formato estándar
+   */
+  private mapCategory(category: string): 'niño' | 'hombre' | 'mujer' | 'unisex' {
+    if (!category) return 'unisex';
+
+    const cat = category.toLowerCase();
+    if (cat.includes('niño') || cat.includes('kid') || cat.includes('child')) return 'niño';
+    if (cat.includes('hombre') || cat.includes('men') || cat.includes('male')) return 'hombre';
+    if (cat.includes('mujer') || cat.includes('women') || cat.includes('female')) return 'mujer';
+    return 'unisex';
+  }
+
+  /**
+   * Eliminar ofertas duplicadas por referencia
+   */
+  private removeDuplicateOffers(offers: TelegramOffer[]): TelegramOffer[] {
+    const seen = new Set<string>();
+    return offers.filter(offer => {
+      const key = `${offer.referencia}_${offer.marca}_${offer.precio}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 
   /**
@@ -277,7 +479,9 @@ export class TelegramOffersService {
         descuento: 25,
         tallas: ['40', '41', '42', '43', '44'],
         colores: ['Negro', 'Blanco', 'Gris'],
-        timestamp: new Date()
+        timestamp: new Date(),
+        fechaCreacion: new Date().toISOString(),
+        fuente: 'telegram'
       },
       {
         id: 'mock-2',
@@ -304,7 +508,9 @@ export class TelegramOffersService {
         descuento: 19,
         tallas: ['75', '80', '85', '90'],
         colores: ['Negro', 'Marrón'],
-        timestamp: new Date()
+        timestamp: new Date(),
+        fechaCreacion: new Date().toISOString(),
+        fuente: 'telegram'
       },
       {
         id: 'mock-3',
@@ -331,7 +537,9 @@ export class TelegramOffersService {
         descuento: 31,
         tallas: ['28', '29', '30', '31', '32'],
         colores: ['Blanco', 'Negro'],
-        timestamp: new Date()
+        timestamp: new Date(),
+        fechaCreacion: new Date().toISOString(),
+        fuente: 'telegram'
       }
     ];
   }

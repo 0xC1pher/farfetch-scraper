@@ -4,9 +4,11 @@
   "description": "Orquestador para Farfetch Scraper con Browser MCP, Scraperr, deepscrape y MinIO.",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/auto-start.mjs && next dev",
+    "dev:quick": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/auto-start.mjs && next start",
+    "start:quick": "next start",
     "lint": "next lint",
     "test": "vitest",
     "bot": "tsx src/telegram-bot/bot-server.ts",
@@ -14,7 +16,10 @@
     "workflow:test": "tsx src/workflow-engine/test-runner.ts",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "setup": "node scripts/auto-start.mjs",
+    "minio:start": "node scripts/auto-start.mjs",
+    "telegram:setup": "node scripts/setup-telegram-bot.js"
   },
   "keywords": [
     "scraper",
@@ -51,7 +56,6 @@
     "react-dom": "^18.3.1",
     "recharts": "^3.1.0",
     "socks-proxy-agent": "^8.0.5",
-    "tsx": "^4.20.3",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
@@ -72,6 +76,7 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.11",
     "ts-jest": "^29.4.0",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vite": "^7.0.3",
     "vite-tsconfig-paths": "^5.1.4",

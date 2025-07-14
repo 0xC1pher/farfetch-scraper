@@ -20,6 +20,24 @@ class BotServer {
         throw new Error('TELEGRAM_BOT_TOKEN no está configurado en las variables de entorno');
       }
 
+      // Modo demo para desarrollo
+      if (token === 'demo_token_for_development') {
+        console.log('🤖 Bot iniciado en MODO DEMO para desarrollo');
+        console.log('📱 Mini App disponible en: http://localhost:3000/telegram-app');
+        console.log('📊 APIs disponibles:');
+        console.log('   - GET /api/telegram/offers');
+        console.log('   - GET /api/bot/status');
+        console.log('   - POST /api/telegram/favorites');
+        console.log('✅ Bot en modo demo - APIs funcionando sin conexión a Telegram');
+        console.log('');
+        console.log('🔧 Para usar bot real:');
+        console.log('   1. Crea bot con @BotFather en Telegram');
+        console.log('   2. Copia el token');
+        console.log('   3. Actualiza TELEGRAM_BOT_TOKEN en .env');
+        console.log('   4. Reinicia: npm run bot:dev');
+        return;
+      }
+
       // Configuración del bot
       const config = {
         token,
@@ -85,7 +103,7 @@ class BotServer {
         console.log(`📊 Estadísticas del bot:`);
         console.log(`   - Estado: ${stats.isRunning ? '🟢 Activo' : '🔴 Inactivo'}`);
         console.log(`   - Sesiones activas: ${stats.activeSessions}`);
-        console.log(`   - Tiempo activo: ${Math.floor(stats.uptime / 60)} minutos`);
+        console.log(`   - Sesiones totales: ${stats.totalSessions}`);
       }
     }, 5 * 60 * 1000); // Cada 5 minutos
   }
