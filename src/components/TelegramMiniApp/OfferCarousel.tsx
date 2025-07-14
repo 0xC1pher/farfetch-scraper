@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TelegramOffer, TelegramCarousel, TELEGRAM_IMAGE_CONFIG } from '../../types/telegram-offers';
-import { Heart, ShoppingBag, Star, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Heart, ShoppingBag, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface OfferCarouselProps {
   chatId: string;
@@ -28,14 +28,29 @@ export default function OfferCarousel({ chatId, onFavorite, onPurchase }: OfferC
   const loadOffers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/telegram/offers');
+      console.log('🔍 OfferCarousel: Cargando ofertas para chatId:', chatId);
+
+      const response = await fetch(`/api/telegram/offers?chatId=${chatId}&limit=20`);
       const data = await response.json();
-      
+
+      console.log('📊 OfferCarousel: Respuesta recibida:', data);
+
       if (data.success) {
-        setCarousel(data.data);
+        // La respuesta ya viene en el formato correcto
+        const carouselData: TelegramCarousel = {
+          offers: data.offers || [],
+          totalCount: data.totalCount || 0,
+          currentPage: 0,
+          totalPages: Math.ceil((data.totalCount || 0) / 20)
+        };
+
+        setCarousel(carouselData);
+        console.log(`✅ OfferCarousel: ${carouselData.offers.length} ofertas cargadas`);
+      } else {
+        console.error('❌ OfferCarousel: Error en respuesta:', data);
       }
     } catch (error) {
-      console.error('Error loading offers:', error);
+      console.error('❌ OfferCarousel: Error loading offers:', error);
     } finally {
       setLoading(false);
     }
@@ -47,7 +62,7 @@ export default function OfferCarousel({ chatId, onFavorite, onPurchase }: OfferC
       const data = await response.json();
       
       if (data.success) {
-        const favoriteIds = new Set(data.data.map((offer: TelegramOffer) => offer.id));
+        const favoriteIds = new Set<string>(data.data.map((offer: TelegramOffer) => offer.id));
         setFavorites(favoriteIds);
       }
     } catch (error) {

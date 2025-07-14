@@ -592,6 +592,221 @@ http://localhost:3000/admin/modules
 
 ---
 
+## 🔧 Sistema Dinámico de Puertos y Inicio Automático
+
+### 🎯 **Problema Resuelto: Conflictos de Puertos y MinIO**
+
+**❌ Problemas Anteriores:**
+- Conflictos constantes de puertos entre servicios
+- MinIO no se iniciaba automáticamente
+- Configuración manual de puertos cada vez
+- Errores de conexión por servicios no disponibles
+
+**✅ Solución Implementada:**
+- **Detección automática** de puertos disponibles
+- **Inicio automático de MinIO** al arrancar el sistema
+- **Reasignación dinámica** de puertos en caso de conflicto
+- **Verificación completa** del estado del sistema
+
+### 🚀 Inicio Automático del Sistema
+
+#### **Comandos de Inicio:**
+
+```bash
+# Inicio completo con configuración automática
+npm run dev
+
+# Inicio rápido sin configuración automática
+npm run dev:quick
+
+# Solo configurar sistema (sin iniciar servidor)
+npm run setup
+
+# Solo iniciar MinIO
+npm run minio:start
+```
+
+#### **Proceso de Inicialización Automática:**
+
+```mermaid
+graph TD
+    A[🚀 npm run dev] --> B[📦 Verificar dependencias]
+    B --> C[🔧 Configurar puertos dinámicamente]
+    C --> D[🗄️ Iniciar MinIO automáticamente]
+    D --> E[🔗 Verificar conexión MinIO]
+    E --> F[🧪 Generar datos de prueba]
+    F --> G[✅ Sistema listo]
+
+    C --> H{¿Puerto ocupado?}
+    H -->|Sí| I[🔄 Buscar puerto alternativo]
+    H -->|No| J[✅ Usar puerto configurado]
+    I --> J
+
+    D --> K{¿MinIO corriendo?}
+    K -->|Sí| L[✅ Usar MinIO existente]
+    K -->|No| M[📥 Descargar/Iniciar MinIO]
+    L --> E
+    M --> E
+```
+
+### 🔧 Gestión Dinámica de Puertos
+
+#### **PortManager - Características:**
+
+- **🔍 Detección automática** de puertos disponibles
+- **🔄 Reasignación inteligente** si hay conflictos
+- **💀 Terminación de procesos** conflictivos cuando es necesario
+- **📊 Monitoreo de servicios** en tiempo real
+
+#### **Servicios Gestionados:**
+
+| Servicio | Puerto Base | Puerto Alternativo | Descripción |
+|----------|-------------|-------------------|-------------|
+| **Next.js** | 3000 | 3001-3010 | Servidor principal |
+| **MinIO API** | 9000 | 9001-9010 | API de almacenamiento |
+| **MinIO Console** | 9001 | 9002-9011 | Interfaz web de MinIO |
+| **Browser-MCP** | 3001 | 3011-3020 | Módulo de navegación |
+| **Scraperr** | 3002 | 3012-3021 | Módulo de scraping |
+| **DeepScrape** | 3003 | 3013-3022 | Módulo de IA |
+
+#### **APIs de Gestión del Sistema:**
+
+```typescript
+// Verificar estado del sistema
+GET /api/system/status
+{
+  "success": true,
+  "system": {
+    "environment": "development",
+    "uptime": 3600,
+    "memory": {...},
+    "platform": "linux"
+  },
+  "services": {
+    "nextjs": { "status": "running", "port": 3000 },
+    "minio": { "status": "running", "port": 9000, "consolePort": 9001 }
+  },
+  "ports": {...},
+  "minio": {
+    "available": true,
+    "bucket": "mexa-data",
+    "endpoints": {
+      "api": "http://localhost:9000",
+      "console": "http://localhost:9001"
+    }
+  }
+}
+
+// Forzar reinicialización del sistema
+POST /api/system/status
+{
+  "success": true,
+  "message": "Sistema inicializado correctamente",
+  "details": {
+    "ports": {...},
+    "minio": {...},
+    "errors": []
+  }
+}
+```
+
+### 🗄️ Inicio Automático de MinIO
+
+#### **Características del Sistema MinIO:**
+
+- **🚀 Inicio automático** al arrancar el sistema
+- **🔍 Detección de instancias** existentes
+- **📥 Descarga automática** del binario si no existe
+- **⚙️ Configuración automática** de credenciales
+- **🔗 Verificación de conectividad** antes de continuar
+
+#### **Configuración Automática:**
+
+```bash
+# Variables de entorno configuradas automáticamente
+MINIO_PORT=9000                    # Puerto API (dinámico)
+MINIO_CONSOLE_PORT=9001           # Puerto Console (dinámico)
+MINIO_ACCESS_KEY=minioadmin       # Usuario por defecto
+MINIO_SECRET_KEY=***REMOVED***    # Contraseña por defecto
+```
+
+#### **Estructura de Datos Creada Automáticamente:**
+
+```
+minio-data/                       # Directorio de datos
+└── mexa-data/                   # Bucket principal
+    ├── extraction/              # 🎯 Datos de módulos
+    │   ├── browser-mcp/        # 🌐 Navegación y auth
+    │   ├── scraperr/           # 🕷️ Scraping básico
+    │   └── deepscrape/         # 🔍 IA y dinámico
+    ├── sessions/               # 🔐 Sesiones por módulo
+    ├── config/                 # ⚙️ Configuraciones
+    └── telegram/               # 📱 Datos de Telegram
+```
+
+### 🧪 Datos de Prueba Automáticos
+
+**Al inicializar el sistema se generan automáticamente:**
+
+- **🌐 Browser-MCP:** 1 sesión de login con fingerprinting
+- **🕷️ Scraperr:** 1 producto extraído con metadatos
+- **🔍 DeepScrape:** 1 elemento analizado con IA
+- **📊 Estadísticas:** Datos para verificar funcionamiento
+
+### 🔧 Comandos de Gestión
+
+```bash
+# Configuración completa del sistema
+npm run setup
+
+# Inicio con configuración automática
+npm run dev
+
+# Inicio rápido (sin configuración)
+npm run dev:quick
+
+# Solo iniciar MinIO
+npm run minio:start
+
+# Verificar estado del sistema
+curl http://localhost:3000/api/system/status
+
+# Forzar reinicialización
+curl -X POST http://localhost:3000/api/system/status
+```
+
+### ✅ Beneficios del Sistema Dinámico
+
+#### **🚀 Productividad:**
+- **Sin configuración manual** de puertos
+- **Inicio automático** de todos los servicios
+- **Detección inteligente** de conflictos
+- **Recuperación automática** de errores
+
+#### **🔧 Robustez:**
+- **Tolerancia a fallos** en puertos ocupados
+- **Múltiples intentos** de conexión
+- **Fallback automático** a configuraciones alternativas
+- **Logs detallados** para debugging
+
+#### **📊 Monitoreo:**
+- **Estado en tiempo real** de todos los servicios
+- **APIs de verificación** del sistema
+- **Información detallada** de puertos y procesos
+- **Reinicialización forzada** cuando sea necesario
+
+### 🎯 Resultado Final
+
+**El sistema ahora:**
+- ✅ **Se inicia automáticamente** sin intervención manual
+- ✅ **Detecta y resuelve** conflictos de puertos
+- ✅ **Garantiza que MinIO** esté siempre disponible
+- ✅ **Genera datos de prueba** para verificación
+- ✅ **Proporciona APIs** para monitoreo y control
+- ✅ **Mantiene logs detallados** de todo el proceso
+
+---
+
 ## 📊 Sistema de Logs en Tiempo Real
 
 ### 🔄 Características del Sistema SSE
@@ -955,6 +1170,81 @@ npm run health          # Verificar estado de servicios
 # MinIO
 docker logs minio-mexa  # Ver logs de MinIO
 docker restart minio-mexa  # Reiniciar MinIO
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### ❌ Error de conexión a MinIO (RESUELTO AUTOMÁTICAMENTE)
+
+**🎯 Problema Anterior:**
+```bash
+❌ Error verificando bucket: ECONNREFUSED
+⚠️ MinIO no disponible: AggregateError [ECONNREFUSED]
+```
+
+**✅ Solución Automática Implementada:**
+```bash
+# El sistema ahora maneja automáticamente:
+npm run dev  # ← Inicia MinIO automáticamente
+
+# Verificación manual si es necesario:
+npm run setup  # ← Solo configurar sistema
+curl http://localhost:3000/api/system/status  # ← Verificar estado
+```
+
+**🔧 Proceso Automático de Resolución:**
+1. **Detecta** si MinIO está corriendo
+2. **Busca** procesos MinIO existentes en cualquier puerto
+3. **Descarga** el binario si no existe
+4. **Inicia** MinIO con configuración automática
+5. **Verifica** conectividad antes de continuar
+6. **Crea** bucket y estructura de datos
+7. **Genera** datos de prueba para verificación
+
+### ⚠️ Si el sistema automático falla:
+
+```bash
+# Verificar procesos MinIO
+ps aux | grep minio
+
+# Verificar puertos ocupados
+netstat -tulpn | grep 900
+
+# Forzar reinicialización completa
+curl -X POST http://localhost:3000/api/system/status
+
+# Inicio manual como último recurso
+./minio server ./minio-data --console-address ":9001"
+```
+
+### 🔧 Otros Problemas Comunes
+
+#### Error de puertos ocupados
+```bash
+# El sistema detecta automáticamente puertos ocupados
+# y reasigna a puertos alternativos
+
+# Verificar configuración actual:
+curl http://localhost:3000/api/system/status
+```
+
+#### Módulos externos no responden
+```bash
+# Verificar que los servicios estén corriendo:
+curl http://localhost:3001/health  # Browser-MCP
+curl http://localhost:3002/health  # Scraperr
+curl http://localhost:3003/health  # DeepScrape
+```
+
+#### Error en datos de módulos
+```bash
+# Verificar estructura de MinIO:
+curl http://localhost:3000/api/modules/stats
+
+# Regenerar datos de prueba:
+curl -X POST http://localhost:3000/api/modules/test-data
 ```
 
 ---

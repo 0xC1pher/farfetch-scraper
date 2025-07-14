@@ -127,6 +127,7 @@ data/
 cache/
 tmp/
 temp/
+minio-data/
 
 # Dependencias de módulos externos
 external/*/node_modules/

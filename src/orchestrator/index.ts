@@ -1,4 +1,4 @@
-import { SessionData, ScrapingData } from '../modules/minio/index';
+import { SessionData } from '../modules/minio/index';
 import { Offer } from './types';
 import { loadBrowserMCP, loadScraperr, loadDeepScrape } from '../utils/moduleLoader';
 import { minioStorage } from '../modules/minio/index';
@@ -377,7 +377,7 @@ async function exampleUsage() {
 }
 
 // Si se ejecuta directamente como script
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
   exampleUsage().catch((err) => {
     console.error('Error en orquestador:', err);
     process.exit(1);
