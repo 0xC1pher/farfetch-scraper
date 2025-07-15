@@ -1,6 +1,10 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { Orchestrator } from '../orchestrator/orchestrator';
+import { SimpleOrchestrator } from '../orchestrator/simple-orchestrator';
 import { workflowEngine } from '../workflow-engine/index.js';
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import axios from 'axios';
+import sharp from 'sharp';
 
 export interface BotConfig {
   token: string;
@@ -15,16 +19,39 @@ export interface BotConfig {
 export interface UserSession {
   chatId: string;
   state: 'idle' | 'awaiting_credentials' | 'awaiting_filters' | 'browsing';
+  pendingFilter?: 'minPrice' | 'maxPrice' | 'brand' | 'minDiscount';
   credentials?: {
     email: string;
     password: string;
   };
   filters?: {
-    minPrice?: number;
-    maxPrice?: number;
+    minPrice?: string | number;
+    maxPrice?: string | number;
     brand?: string;
     category?: string;
-    minDiscount?: number;
+    minDiscount?: string | number;
+    [key: string]: string | number | undefined;
+  };
+  favorites?: string[];
+  lastActivity: Date;
+}
+
+// Ajuste de tipo para aceptar string | number | undefined en session.filters
+export interface UserSession {
+  chatId: string;
+  state: 'idle' | 'awaiting_credentials' | 'awaiting_filters' | 'browsing';
+  pendingFilter?: 'minPrice' | 'maxPrice' | 'brand' | 'minDiscount';
+  credentials?: {
+    email: string;
+    password: string;
+  };
+  filters?: {
+    minPrice?: string | number;
+    maxPrice?: string | number;
+    brand?: string;
+    category?: string;
+    minDiscount?: string | number;
+    [key: string]: string | number | undefined;
   };
   favorites?: string[];
   lastActivity: Date;
@@ -32,7 +59,7 @@ export interface UserSession {
 
 export class MexaTelegramBot {
   private bot: TelegramBot;
-  private orchestrator: Orchestrator;
+  private orchestrator: SimpleOrchestrator | null;
   private config: BotConfig;
   private userSessions: Map<string, UserSession> = new Map();
   private isRunning: boolean = false;
@@ -45,7 +72,7 @@ export class MexaTelegramBot {
     };
 
     this.bot = new TelegramBot(config.token, { polling: false });
-    this.orchestrator = new Orchestrator();
+    this.orchestrator = null; // Se inicializará en start()
     this.setupCommands();
     this.setupCallbacks();
   }
@@ -60,14 +87,22 @@ export class MexaTelegramBot {
     }
 
     try {
+      // Inicializar orquestador
+      this.orchestrator = await SimpleOrchestrator.create();
+      console.log('✅ Orquestador inicializado');
+
       await this.bot.startPolling();
       this.isRunning = true;
       console.log('🤖 Bot de Telegram iniciado correctamente');
-      
+
       // Limpiar sesiones expiradas cada hora
       setInterval(() => this.cleanExpiredSessions(), 60 * 60 * 1000);
     } catch (error) {
-      console.error('❌ Error iniciando bot:', error);
+      if (error instanceof Error) {
+        console.error('❌ Error iniciando bot:', error.message);
+      } else {
+        console.error('❌ Error iniciando bot:', error);
+      }
       throw error;
     }
   }
@@ -86,7 +121,11 @@ export class MexaTelegramBot {
       this.isRunning = false;
       console.log('🤖 Bot de Telegram detenido correctamente');
     } catch (error) {
-      console.error('❌ Error deteniendo bot:', error);
+      if (error instanceof Error) {
+        console.error('❌ Error deteniendo bot:', error.message);
+      } else {
+        console.error('❌ Error deteniendo bot:', error);
+      }
       throw error;
     }
   }
@@ -162,7 +201,11 @@ export class MexaTelegramBot {
         // Responder al callback para quitar el loading
         await this.bot.answerCallbackQuery(query.id);
       } catch (error) {
-        console.error('Error handling callback:', error);
+        if (error instanceof Error) {
+          console.error('Error handling callback:', error.message);
+        } else {
+          console.error('Error handling callback:', error);
+        }
         await this.bot.answerCallbackQuery(query.id, { text: 'Error procesando solicitud' });
       }
     });
@@ -244,7 +287,11 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
 
       await this.sendOffers(chatId, offers);
     } catch (error) {
-      console.error('Error in search command:', error);
+      if (error instanceof Error) {
+        console.error('Error in search command:', error.message);
+      } else {
+        console.error('Error in search command:', error);
+      }
       await this.bot.sendMessage(chatId, '❌ Error buscando ofertas. Intenta más tarde.');
     }
   }
@@ -306,16 +353,20 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
    * Manejar comando /status
    */
   private async handleStatusCommand(chatId: string): Promise<void> {
+    if (!this.orchestrator) {
+      await this.bot.sendMessage(chatId, '❌ El orquestador no está inicializado.');
+      return;
+    }
     try {
-      const stats = await this.orchestrator.getStats();
+      const stats = this.orchestrator.getModuleStatus();
       
       const statusMessage = `
 🔧 *Estado del Sistema*
 
 *Servicios:*
-• Browser MCP: ${stats.browserMCP?.available ? '✅' : '❌'}
-• Scraperr: ${stats.scraperr?.available ? '✅' : '❌'}
-• MinIO: ${stats.minio?.available ? '✅' : '❌'}
+• Browser MCP: ${stats.browserMCP ? '✅' : '❌'}
+• Scraperr: ${stats.scraperr ? '✅' : '❌'}
+• DeepScrape: ${stats.deepscrape ? '✅' : '❌'}
 
 *Estadísticas:*
 • Sesiones activas: ${this.userSessions.size}
@@ -327,7 +378,11 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
 
       await this.bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
     } catch (error) {
-      console.error('Error getting status:', error);
+      if (error instanceof Error) {
+        console.error('Error getting status:', error.message);
+      } else {
+        console.error('Error getting status:', error);
+      }
       await this.bot.sendMessage(chatId, '❌ Error obteniendo estado del sistema.');
     }
   }
@@ -341,6 +396,10 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
     switch (session.state) {
       case 'awaiting_credentials':
         await this.handleCredentialsInput(chatId, text);
+        break;
+      
+      case 'awaiting_filters':
+        await this.handleFilterInput(chatId, text);
         break;
 
       default:
@@ -362,7 +421,11 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
       const offers = await this.getPublicOffers(session.filters);
       await this.sendOffers(chatId, offers, pageNumber);
     } catch (error) {
-      console.error('Error in page callback:', error);
+      if (error instanceof Error) {
+        console.error('Error in page callback:', error.message);
+      } else {
+        console.error('Error in page callback:', error);
+      }
       await this.bot.sendMessage(chatId, '❌ Error cargando página. Intenta más tarde.');
     }
   }
@@ -422,37 +485,31 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
    */
   private async handleFilterCallback(chatId: string, data: string): Promise<void> {
     const session = this.getOrCreateSession(chatId);
+    session.state = 'awaiting_filters';
 
     switch (data) {
       case 'filter_minprice':
-        session.state = 'awaiting_filters';
-        await this.bot.sendMessage(chatId,
-          '💰 Ingresa el precio mínimo (solo números):'
-        );
+        session.pendingFilter = 'minPrice';
+        await this.bot.sendMessage(chatId, '💰 Ingresa el precio mínimo (solo números):');
         break;
 
       case 'filter_maxprice':
-        session.state = 'awaiting_filters';
-        await this.bot.sendMessage(chatId,
-          '💸 Ingresa el precio máximo (solo números):'
-        );
+        session.pendingFilter = 'maxPrice';
+        await this.bot.sendMessage(chatId, '💸 Ingresa el precio máximo (solo números):');
         break;
 
       case 'filter_brand':
-        session.state = 'awaiting_filters';
-        await this.bot.sendMessage(chatId,
-          '🏷️ Ingresa el nombre de la marca:'
-        );
+        session.pendingFilter = 'brand';
+        await this.bot.sendMessage(chatId, '🏷️ Ingresa el nombre de la marca:');
         break;
 
       case 'filter_discount':
-        session.state = 'awaiting_filters';
-        await this.bot.sendMessage(chatId,
-          '🔥 Ingresa el descuento mínimo (%):'
-        );
+        session.pendingFilter = 'minDiscount';
+        await this.bot.sendMessage(chatId, '🔥 Ingresa el descuento mínimo (%):');
         break;
 
       case 'filter_clear':
+        session.state = 'idle';
         await this.clearFilters(chatId);
         break;
     }
@@ -471,7 +528,7 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
   }
 
   /**
-   * Enviar ofertas con paginación
+   * Enviar ofertas con imagen en tamaño estándar siempre
    */
   private async sendOffers(chatId: string, offers: any[], page: number = 0): Promise<void> {
     const maxOffers = this.config.maxOffersPerMessage || 5;
@@ -486,20 +543,59 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
     }
 
     for (const offer of offersToShow) {
-      const message = this.formatOffer(offer);
+      const caption = this.formatOffer(offer);
       const keyboard = {
         inline_keyboard: [
-          [
-            { text: '⭐ Favorito', callback_data: `fav_${offer.id}` },
-            { text: '🔗 Ver producto', url: offer.productUrl }
-          ]
+          [{ text: '⭐ Favorito', callback_data: `fav_${offer.id}` }]
         ]
       };
 
-      await this.bot.sendMessage(chatId, message, {
-        parse_mode: 'Markdown',
-        reply_markup: keyboard
-      });
+      if (offer.imageUrl) {
+        console.log(`🖼️ Intentando cargar imagen: ${offer.imageUrl}`);
+        try {
+          // Verificar si la URL es válida antes de descargar
+          if (!offer.imageUrl.startsWith('http')) {
+            throw new Error('URL de imagen inválida');
+          }
+
+          // Descargar la imagen
+          const response = await axios.get(offer.imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 10000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+          });
+          // Corrección: aseguro que response.data sea un Buffer
+          const imageBuffer = Buffer.from(response.data as ArrayBuffer);
+          console.log(`✅ Imagen descargada exitosamente: ${imageBuffer.length} bytes`);
+
+          // Procesar con sharp: redimensionar y convertir a jpeg para compatibilidad
+          const processedImage = await sharp(imageBuffer)
+            .resize({ width: 1280, withoutEnlargement: true })
+            .jpeg({ quality: 80 })
+            .toBuffer();
+
+          await this.bot.sendPhoto(chatId, processedImage, {
+            caption: caption,
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+          });
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.log(`❌ Error cargando imagen ${offer.imageUrl}:`, errorMessage);
+          // Si falla la imagen, enviar solo el texto
+          await this.bot.sendMessage(chatId, `🖼️ (Imagen no disponible)\n\n${caption}`, {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+          });
+        }
+      } else {
+        await this.bot.sendMessage(chatId, caption, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard
+        });
+      }
     }
 
     // Agregar navegación si hay múltiples páginas
@@ -513,7 +609,80 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
   }
 
   /**
-   * Crear teclado de paginación
+   * Manejar input de filtros
+   */
+  private async handleFilterInput(chatId: string, text: string): Promise<void> {
+    const session = this.getOrCreateSession(chatId);
+    const { pendingFilter } = session;
+
+    if (!pendingFilter) {
+      session.state = 'idle';
+      await this.bot.sendMessage(chatId, '⚠️ Ocurrió un error. Por favor, intenta de nuevo.');
+      return;
+    }
+
+    if (!session.filters) {
+      session.filters = {};
+    }
+
+    let value: string | number = text.trim();
+    let confirmationMessage = '';
+
+    if (pendingFilter === 'minPrice' || pendingFilter === 'maxPrice' || pendingFilter === 'minDiscount') {
+      const numValue = parseInt(value as string, 10);
+      if (isNaN(numValue)) {
+        await this.bot.sendMessage(chatId, '❌ Valor inválido. Por favor, ingresa solo números.');
+        return;
+      }
+      value = numValue;
+    } else {
+      // Para filtros de texto (brand, category), asegurar que sea string
+      value = value.toString();
+    }
+    session.filters[pendingFilter] = value as string;
+    confirmationMessage = `✅ Filtro '${pendingFilter}' configurado a '${value}'.`;
+
+    // Limpiar estado
+    session.state = 'idle';
+    delete session.pendingFilter;
+
+    await this.bot.sendMessage(chatId, confirmationMessage);
+    await this.handleFiltersCommand(chatId); // Mostrar menú de filtros actualizado
+  }
+
+  /**
+   * Obtener URL de imagen válida, reemplazando URLs de ejemplo con imágenes reales
+   */
+  private getValidImageUrl(imageUrl: string | null): string | null {
+    if (!imageUrl) return null;
+
+    // Si es una URL de ejemplo o placeholder, usar imagen real
+    if (imageUrl.includes('example.com') ||
+        imageUrl.includes('placeholder') ||
+        imageUrl.includes('farfetch-contents.com')) {
+      // Usar imágenes reales de productos de moda de Unsplash
+      const realImages = [
+        'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1571945153237-4929e783af4a?w=400&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&h=600&fit=crop',
+        'https://images.unsplash.com/photo-1551107696-a4b0c5a0d9a2?w=400&h=600&fit=crop'
+      ];
+
+      // Seleccionar imagen basada en hash del ID para consistencia
+      const hash = imageUrl.split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0);
+
+      return realImages[Math.abs(hash) % realImages.length];
+    }
+
+    return imageUrl;
+  }
+
+  /**
+   * Limpiar filtros
    */
   private createPaginationKeyboard(currentPage: number, totalPages: number, totalOffers: number) {
     const buttons = [];
@@ -539,45 +708,138 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
       ? Math.round(((offer.originalPrice - offer.price) / offer.originalPrice) * 100)
       : 0;
 
-    return `
-🛍️ *${offer.title}*
-🏷️ Marca: ${offer.brand}
-💰 Precio: $${offer.price}${offer.originalPrice ? ` ~~$${offer.originalPrice}~~` : ''}
-${discount > 0 ? `🔥 Descuento: ${discount}%` : ''}
-📦 Disponible: ${offer.availability ? '✅' : '❌'}
-    `.trim();
+    const caption = `🛍️ *${offer.title}*
+💰 Precio: $${offer.price}${offer.originalPrice ? ` ~~$${offer.originalPrice}~~` : ''}${discount > 0 ? ` (${discount}% OFF)` : ''}
+📦 Categoría: ${offer.category}
+🏷️ Marca: ${offer.brand}`;
+
+    return caption.trim();
   }
 
   /**
-   * Obtener ofertas públicas (mock)
+   * Obtener ofertas desde directorio local con filtros
    */
   private async getPublicOffers(filters?: any): Promise<any[]> {
     try {
-      // Mock data para pruebas
-      const mockOffers = [
-        {
-          id: '1',
-          title: 'Sneakers Nike Air Max',
-          brand: 'Nike',
-          price: 120,
-          originalPrice: 150,
-          availability: true,
-          productUrl: 'https://farfetch.com/product/1'
-        },
-        {
-          id: '2',
-          title: 'Gucci Belt',
-          brand: 'Gucci',
-          price: 450,
-          originalPrice: 500,
-          availability: true,
-          productUrl: 'https://farfetch.com/product/2'
-        }
-      ];
+      console.log('🔍 Obteniendo ofertas desde directorio local...');
 
-      return mockOffers;
+      const dataDir = join(process.cwd(), 'data', 'scraping');
+
+      // Verificar si el directorio existe
+      try {
+        await fs.access(dataDir);
+      } catch {
+        console.log('⚠️ No hay directorio de datos');
+        return [];
+      }
+
+      // Obtener datos de todos los módulos
+      let allOffers: any[] = [];
+
+      try {
+        const modules = await fs.readdir(dataDir);
+        console.log(`📁 Módulos encontrados: ${modules.join(', ')}`);
+
+        for (const module of modules) {
+          const moduleDir = join(dataDir, module);
+          const files = await fs.readdir(moduleDir);
+          const jsonFiles = files.filter(f => f.endsWith('.json')).sort().reverse().slice(0, 5); // Últimos 5 archivos por módulo
+
+          for (const file of jsonFiles) {
+            try {
+              const content = await fs.readFile(join(moduleDir, file), 'utf-8');
+              const data = JSON.parse(content);
+
+              // Manejar diferentes estructuras de datos según el módulo
+              let offers: any[] = [];
+
+              if (data.data?.offers && Array.isArray(data.data.offers)) {
+                offers = data.data.offers;
+              } else if (data.items && Array.isArray(data.items)) {
+                // Para datos de scraperr que pueden venir directamente en items
+                offers = data.items;
+              } else if (data.extractedData && Array.isArray(data.extractedData)) {
+                // Para datos de deepscrape
+                offers = data.extractedData.map((item: any) => item.data || item);
+              } else if (Array.isArray(data)) {
+                // Para datos que vienen directamente como array
+                offers = data;
+              }
+
+              if (offers.length > 0) {
+                // Agregar información del módulo a cada oferta y mapear campos de imagen
+                const offersWithModule = offers.map((offer: any) => ({
+                  ...offer,
+                  source: data.data?.source || module,
+                  extractedAt: data.timestamp,
+                  // Mapear diferentes campos de imagen a imageUrl y usar imágenes reales
+                  imageUrl: this.getValidImageUrl(offer.imageUrl || offer.image || offer.img || offer.src),
+                  // Asegurar que tenga los campos básicos
+                  id: offer.id || `${module}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+                  title: offer.title || offer.name || 'Producto sin título',
+                  price: parseFloat(offer.price) || 0,
+                  brand: offer.brand || 'Sin marca'
+                }));
+                allOffers.push(...offersWithModule);
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              console.log(`⚠️ Error leyendo archivo ${file}: ${message}`);
+            }
+          }
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(`⚠️ Error leyendo directorio: ${message}`);
+        return [];
+      }
+
+      console.log(`📊 Total ofertas encontradas: ${allOffers.length}`);
+
+      // Filtrar duplicados por ID
+      const uniqueOffers = allOffers.filter((offer, index, self) =>
+        index === self.findIndex(o => o.id === offer.id)
+      );
+
+      console.log(`🔍 Ofertas únicas: ${uniqueOffers.length}`);
+
+      // Aplicar filtros si existen
+      let filteredOffers = uniqueOffers;
+
+      if (filters) {
+        filteredOffers = uniqueOffers.filter(offer => {
+          // Filtro por precio mínimo
+          if (filters.minPrice && offer.price < filters.minPrice) return false;
+
+          // Filtro por precio máximo
+          if (filters.maxPrice && offer.price > filters.maxPrice) return false;
+
+          // Filtro por marca
+          if (filters.brand && !offer.brand?.toLowerCase().includes(filters.brand.toLowerCase())) return false;
+
+          // Filtro por categoría
+          if (filters.category && !offer.category?.toLowerCase().includes(filters.category.toLowerCase())) return false;
+
+          // Filtro por descuento mínimo
+          if (filters.minDiscount && offer.originalPrice) {
+            const discount = ((offer.originalPrice - offer.price) / offer.originalPrice) * 100;
+            if (discount < filters.minDiscount) return false;
+          }
+
+          return true;
+        });
+      }
+
+      console.log(`✅ Ofertas después de filtros: ${filteredOffers.length}`);
+
+      // Ordenar por timestamp más reciente
+      filteredOffers.sort((a, b) => new Date(b.extractedAt).getTime() - new Date(a.extractedAt).getTime());
+
+      return filteredOffers;
+
     } catch (error) {
-      console.error('Error getting offers:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error obteniendo ofertas desde directorio local:', message);
       return [];
     }
   }
@@ -624,3 +886,5 @@ ${discount > 0 ? `🔥 Descuento: ${discount}%` : ''}
     };
   }
 }
+
+

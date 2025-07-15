@@ -5,6 +5,7 @@
  * Se ejecuta antes de iniciar el servidor Next.js
  */
 
+import 'dotenv/config';
 import { spawn, exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
@@ -31,15 +32,23 @@ class AutoStart {
       // 2. Configurar puertos dinámicamente
       await this.configurePorts();
 
-      // 3. Iniciar MinIO automáticamente
+      // 3. Forzar liberación de puertos ocupados
+      await this.forcePortsAvailable();
+
+      // 4. Iniciar MinIO automáticamente
       await this.ensureMinIORunning();
 
-      // 4. Verificar que todo esté listo
+      // 5. Iniciar Bot de Telegram
+      await this.ensureTelegramBotRunning();
+
+      // 6. Verificar que todo esté listo
       await this.verifySystem();
 
       console.log('\n✅ Sistema Mexa listo para usar!');
       console.log('📊 Panel de administración: http://localhost:3000/admin');
-      console.log('🗄️ MinIO Console: http://localhost:9001 (minioadmin/minioadmin123)');
+      console.log('🗄️ MinIO Console: http://localhost:9011 (minioadmini/minioadmin)');
+      console.log('🤖 Bot de Telegram: Verificar estado en panel admin');
+      console.log('📱 Mini App: http://localhost:3000/telegram-app');
 
     } catch (error) {
       console.error('\n❌ Error en inicialización automática:', error.message);
@@ -63,13 +72,47 @@ class AutoStart {
     }
   }
 
+  async forcePortsAvailable() {
+    console.log('🔧 Forzando liberación de puertos ocupados...');
+
+    const criticalPorts = [3000, 9000, 9001, 9010, 9011];
+
+    for (const port of criticalPorts) {
+      try {
+        const isOccupied = !(await this.isPortAvailable(port));
+        if (isOccupied) {
+          console.log(`⚠️ Puerto ${port} ocupado, liberando...`);
+          await this.killProcessOnPort(port);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1s
+        }
+      } catch (error) {
+        console.log(`⚠️ Error liberando puerto ${port}: ${error.message}`);
+      }
+    }
+  }
+
+  async killProcessOnPort(port) {
+    try {
+      // Buscar proceso en el puerto
+      const { stdout } = await execAsync(`lsof -ti:${port}`);
+      const pids = stdout.trim().split('\n').filter(pid => pid);
+
+      for (const pid of pids) {
+        console.log(`🔪 Matando proceso ${pid} en puerto ${port}`);
+        await execAsync(`kill -9 ${pid}`);
+      }
+    } catch (error) {
+      // Puerto ya libre o comando falló
+    }
+  }
+
   async configurePorts() {
     console.log('🔧 Configurando puertos dinámicamente...');
 
     const ports = {
-      nextjs: await this.findAvailablePort(3000),
-      minio: await this.findAvailablePort(9000),
-      minioConsole: await this.findAvailablePort(9001)
+      nextjs: 3000,
+      minio: 9010,
+      minioConsole: 9011
     };
 
     // Actualizar variables de entorno
@@ -143,8 +186,8 @@ class AutoStart {
         stdio: 'ignore',
         env: {
           ...process.env,
-          MINIO_ROOT_USER: 'minioadmin',
-          MINIO_ROOT_PASSWORD: 'minioadmin123'
+          MINIO_ROOT_USER: 'minioadmini',
+          MINIO_ROOT_PASSWORD: 'minioadmin'
         }
       });
 
@@ -208,6 +251,81 @@ class AutoStart {
     }
     
     throw new Error(`MinIO no respondió después de ${timeout}ms`);
+  }
+
+  async killExistingBotProcess() {
+    try {
+      const { stdout } = await execAsync('ps aux | grep "telegram-bot/bot-server" | grep -v grep');
+      const pids = stdout.split('\n').map(line => line.trim().split(/\s+/)[1]).filter(pid => pid);
+      
+      for (const pid of pids) {
+        console.log(`🔪 Matando proceso del bot existente (PID: ${pid})...`);
+        await execAsync(`kill -9 ${pid}`);
+      }
+    } catch (error) {
+      // No process found, which is fine.
+    }
+  }
+
+  async ensureTelegramBotRunning() {
+    console.log('🤖 Verificando Bot de Telegram...');
+
+    // Matar cualquier proceso del bot existente para asegurar que se carguen los cambios
+    await this.killExistingBotProcess();
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Dar tiempo a que el proceso muera
+    // Verificar si el bot ya está corriendo
+    const isBotRunning = await this.isTelegramBotRunning();
+    if (isBotRunning) {
+      // Esto no debería ocurrir si killExistingBotProcess funcionó, pero es una salvaguarda.
+      console.log('✅ Bot de Telegram ya está corriendo');
+      return;
+    }
+
+    // Verificar token
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token || token === 'demo_token_for_development') {
+      console.log('⚠️ Bot de Telegram en modo demo (sin token real)');
+      return;
+    }
+
+    console.log('🚀 Iniciando Bot de Telegram...');
+
+    try {
+      // Iniciar bot en background
+      const botProcess = spawn('npx', ['tsx', 'src/telegram-bot/bot-server.ts'], {
+        cwd: this.projectRoot,
+        detached: true,
+        stdio: 'ignore',
+        env: {
+          ...process.env
+        }
+      });
+
+      botProcess.unref();
+
+      // Esperar a que inicie
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      const isRunning = await this.isTelegramBotRunning();
+      if (isRunning) {
+        console.log('✅ Bot de Telegram iniciado exitosamente');
+      } else {
+        console.log('⚠️ Bot de Telegram puede no haber iniciado correctamente');
+      }
+
+    } catch (error) {
+      console.error('❌ Error iniciando Bot de Telegram:', error.message);
+      console.log('⚠️ El sistema funcionará sin bot de Telegram');
+    }
+  }
+
+  async isTelegramBotRunning() {
+    try {
+      const { stdout } = await execAsync('ps aux | grep "telegram-bot/bot-server" | grep -v grep');
+      return stdout.includes('bot-server.ts');
+    } catch (error) {
+      return false;
+    }
   }
 
   async verifySystem() {
