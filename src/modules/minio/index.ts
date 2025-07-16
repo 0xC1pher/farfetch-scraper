@@ -47,10 +47,10 @@ export class MinioStorage {
   constructor(config?: Partial<MinioConfig>) {
     const defaultConfig: MinioConfig = {
       endPoint: process.env.MINIO_ENDPOINT || 'localhost',
-      port: Number(process.env.MINIO_PORT) || 9000,
+      port: Number(process.env.MINIO_PORT) || 9010,
       useSSL: process.env.MINIO_USE_SSL === 'true',
-      accessKey: process.env.MINIO_ACCESS_KEY || '',
-      secretKey: process.env.MINIO_SECRET_KEY || '',
+      accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+      secretKey: process.env.MINIO_SECRET_KEY || '***REMOVED***',
       bucket: process.env.MINIO_BUCKET || 'mexa-data'
     };
 
@@ -79,10 +79,21 @@ export class MinioStorage {
   }
 
   async getStatus(): Promise<{ available: boolean; bucket: string }> {
-    return {
-      available: this.isAvailable,
-      bucket: this.bucket
-    };
+    try {
+      // Verificar en tiempo real si MinIO está disponible
+      await this.client.bucketExists(this.bucket);
+      this.isAvailable = true;
+      return {
+        available: true,
+        bucket: this.bucket
+      };
+    } catch (error) {
+      this.isAvailable = false;
+      return {
+        available: false,
+        bucket: this.bucket
+      };
+    }
   }
 
   /**

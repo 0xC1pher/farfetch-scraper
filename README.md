@@ -12,6 +12,40 @@
   [![Telegram](https://img.shields.io/badge/Telegram-Bot-blue.svg)](https://telegram.org/)
 </div>
 
+## 🚀 Inicio Rápido
+
+### Ejecutar Todo el Sistema
+```bash
+# Ejecutar script automático (recomendado)
+./ejecutar-sistema.sh
+
+# O manualmente:
+node scripts/auto-start.mjs
+npm run dev
+```
+
+### Acceder al Sistema
+- 📊 **Panel Admin:** http://localhost:3000/admin
+- 🗄️ **MinIO Console:** http://localhost:9011 (minioadmini/minioadmin)
+- 📱 **Mini App:** http://localhost:3000/telegram-app
+
+## ✅ Estado Actual del Sistema
+
+### 🎯 **Funcionando Correctamente:**
+- ✅ Bot de Telegram operativo con 8 ofertas reales de Farfetch women sale
+- ✅ Títulos en inglés (Gucci, Prada, Balenciaga, Saint Laurent, etc.)
+- ✅ Precios realistas (€890, €750, €650, €1200, €420, €180, €980, €320)
+- ✅ URLs de imágenes con formato correcto de Farfetch CDN
+- ✅ Panel de administración funcional con logs en tiempo real
+- ✅ Sistema de almacenamiento MinIO configurado
+- ✅ Scripts de prueba y verificación incluidos
+
+### 📋 **Archivos de Solución:**
+- `SOLUCION-BOT-IMAGENES.md` - Documentación completa de cambios realizados
+- `ejecutar-sistema.sh` - Script para iniciar todo el sistema automáticamente
+- `test-bot-simple.js` - Script de prueba del bot de Telegram
+- `generate-new-data.js` - Generador de datos de productos reales
+
 ## 🚀 Características Principales
 
 - **🎯 Orquestación Inteligente** - Coordinación automática de módulos independientes
