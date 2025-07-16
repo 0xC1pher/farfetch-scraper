@@ -79,76 +79,157 @@ export class TelegramOffersService {
   }
 
   /**
-   * Obtener ofertas más recientes de MinIO integrando datos de todos los módulos
+   * Obtener ofertas más recientes del directorio local data/scraping
    */
   private async getLatestOffers(): Promise<TelegramOffer[]> {
     try {
-      console.log('🔍 Obteniendo ofertas de todos los módulos...');
+      console.log('🔍 Obteniendo ofertas desde directorio local data/scraping...');
 
-      // Obtener datos de todos los módulos de extracción
-      const [browserMcpData, scaperrData, deepscrapeData, telegramOffers] = await Promise.all([
-        minioStorage.listModuleData('browser-mcp', 20).catch(() => []),
-        minioStorage.listModuleData('scraperr', 20).catch(() => []),
-        minioStorage.listModuleData('deepscrape', 20).catch(() => []),
-        this.getStoredTelegramOffers().catch(() => [])
-      ]);
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const dataDir = path.join(process.cwd(), 'data', 'scraping');
+
+      // Verificar si el directorio existe
+      try {
+        await fs.access(dataDir);
+      } catch {
+        console.log('⚠️ Directorio data/scraping no existe, usando datos mock');
+        return this.getMockOffers();
+      }
 
       const offers: TelegramOffer[] = [];
+      const modules = await fs.readdir(dataDir);
+      console.log(`📁 Módulos encontrados: ${modules.join(', ')}`);
 
-      // Procesar datos de Scraperr (productos directos)
-      for (const item of scaperrData) {
-        if (item.data && Array.isArray(item.data.items)) {
-          for (const product of item.data.items) {
-            const offer = this.convertScaperrToTelegramOffer(product, item);
-            if (offer) offers.push(offer);
+      for (const module of modules) {
+        const moduleDir = path.join(dataDir, module);
+        try {
+          const files = await fs.readdir(moduleDir);
+          const jsonFiles = files.filter(f => f.endsWith('.json')).sort().reverse().slice(0, 5);
+
+          for (const file of jsonFiles) {
+            try {
+              const content = await fs.readFile(path.join(moduleDir, file), 'utf-8');
+              const data = JSON.parse(content);
+
+              // Manejar diferentes estructuras de datos según el módulo
+              let moduleOffers: any[] = [];
+
+              if (data.data?.offers && Array.isArray(data.data.offers)) {
+                moduleOffers = data.data.offers;
+              } else if (data.items && Array.isArray(data.items)) {
+                moduleOffers = data.items;
+              } else if (data.extractedData && Array.isArray(data.extractedData)) {
+                moduleOffers = data.extractedData.map((item: any) => item.data || item);
+              } else if (Array.isArray(data)) {
+                moduleOffers = data;
+              }
+
+              // Convertir ofertas al formato Telegram
+              for (const offer of moduleOffers) {
+                const telegramOffer = this.convertRealDataToTelegramOffer(offer, module);
+                if (telegramOffer) offers.push(telegramOffer);
+              }
+
+            } catch (error) {
+              console.warn(`⚠️ Error leyendo archivo ${file}:`, error);
+            }
           }
+        } catch (error) {
+          console.warn(`⚠️ Error leyendo módulo ${module}:`, error);
         }
       }
 
-      // Procesar datos de DeepScrape (elementos extraídos por IA)
-      for (const item of deepscrapeData) {
-        if (item.data && Array.isArray(item.data.extractedData)) {
-          for (const extracted of item.data.extractedData) {
-            const offer = this.convertDeepScrapeToTelegramOffer(extracted, item);
-            if (offer) offers.push(offer);
-          }
-        }
-      }
-
-      // Procesar datos de Browser-MCP (sesiones con ofertas)
-      for (const item of browserMcpData) {
-        if (item.data && item.data.offers) {
-          for (const offer of item.data.offers) {
-            const telegramOffer = this.convertBrowserMcpToTelegramOffer(offer, item);
-            if (telegramOffer) offers.push(telegramOffer);
-          }
-        }
-      }
-
-      // Agregar ofertas almacenadas directamente en telegram/offers/
-      offers.push(...telegramOffers);
-
-      // Eliminar duplicados por referencia
-      const uniqueOffers = this.removeDuplicateOffers(offers);
-
-      // Ordenar por fecha de creación (más recientes primero)
-      uniqueOffers.sort((a, b) =>
-        new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+      // Eliminar duplicados por ID
+      const uniqueOffers = offers.filter((offer, index, self) =>
+        index === self.findIndex(o => o.id === offer.id)
       );
 
-      console.log(`✅ ${uniqueOffers.length} ofertas obtenidas de módulos:`, {
-        'browser-mcp': browserMcpData.length,
-        'scraperr': scaperrData.length,
-        'deepscrape': deepscrapeData.length,
-        'telegram': telegramOffers.length,
-        'total_unique': uniqueOffers.length
-      });
+      console.log(`📊 Total ofertas encontradas: ${offers.length}`);
+      console.log(`🔍 Ofertas únicas: ${uniqueOffers.length}`);
 
-      return uniqueOffers.length > 0 ? uniqueOffers : this.getMockOffers();
+      // En producción, NO usar datos mock
+      if (uniqueOffers.length === 0) {
+        console.log('⚠️ No se encontraron ofertas reales en data/scraping');
+        return [];
+      }
+
+      // Ordenar por timestamp más reciente
+      uniqueOffers.sort((a, b) =>
+        new Date(b.timestamp || b.fechaCreacion).getTime() -
+        new Date(a.timestamp || a.fechaCreacion).getTime()
+      );
+
+      return uniqueOffers;
     } catch (error) {
-      console.warn('⚠️ Error cargando ofertas de módulos, usando datos mock:', error);
-      return this.getMockOffers();
+      console.error('❌ Error cargando ofertas desde directorio local:', error);
+      return [];
     }
+  }
+
+  /**
+   * Convertir datos reales de scraping al formato Telegram
+   */
+  private convertRealDataToTelegramOffer(offer: any, module: string): TelegramOffer | null {
+    try {
+      // Extraer campos básicos con diferentes nombres posibles
+      const id = offer.id || `${module}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+      const title = offer.title || offer.name || offer.titulo || 'Producto sin título';
+      const price = parseFloat(offer.price || offer.precio || 0);
+      const originalPrice = parseFloat(offer.originalPrice || offer.precioOriginal || offer.original_price || price);
+      const brand = offer.brand || offer.marca || 'Designer Brand';
+      const imageUrl = offer.imageUrl || offer.image || offer.img || offer.src || null;
+
+      // Calcular descuento
+      let discount = 0;
+      if (offer.discount !== undefined) {
+        discount = parseFloat(offer.discount);
+      } else if (originalPrice > price) {
+        discount = Math.round(((originalPrice - price) / originalPrice) * 100);
+      }
+
+      return {
+        id,
+        precio: price,
+        precioOriginal: originalPrice,
+        referencia: offer.reference || offer.referencia || id,
+        categoria: this.mapCategory(offer.category || offer.categoria || 'general'),
+        cantidadDisponible: offer.stock || offer.cantidadDisponible || 1,
+        estatus: offer.availability === 'in_stock' || offer.available ? 'disponible' : 'agotado',
+        imagenes: imageUrl ? [{
+          id: `img_${id}`,
+          url: imageUrl,
+          width: 375,
+          height: 667,
+          alt: `${title} - Vista principal`,
+          isMain: true
+        }] : [],
+        titulo: title,
+        marca: brand,
+        descripcion: offer.description || offer.descripcion || `${brand} ${title}`,
+        url: offer.url || 'https://www.farfetch.com',
+        descuento: discount,
+        tallas: offer.sizes || offer.tallas || [],
+        colores: offer.colors || offer.colores || [],
+        timestamp: new Date(offer.timestamp || offer.extractedAt || Date.now()),
+        fechaCreacion: new Date(offer.timestamp || offer.extractedAt || Date.now()).toISOString(),
+        fuente: module as 'browser-mcp' | 'scraperr' | 'deepscrape' | 'telegram'
+      };
+    } catch (error) {
+      console.warn(`⚠️ Error convirtiendo oferta de ${module}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Mapear categorías a formato estándar
+   */
+  private mapCategory(category: string): 'hombre' | 'mujer' | 'niño' {
+    const cat = category.toLowerCase();
+    if (cat.includes('women') || cat.includes('mujer') || cat.includes('woman')) return 'mujer';
+    if (cat.includes('men') || cat.includes('hombre') || cat.includes('man')) return 'hombre';
+    if (cat.includes('kid') || cat.includes('niño') || cat.includes('child')) return 'niño';
+    return 'mujer'; // Default para Farfetch women sale
   }
 
   /**
@@ -281,18 +362,7 @@ export class TelegramOffersService {
     }
   }
 
-  /**
-   * Mapear categoría a formato estándar
-   */
-  private mapCategory(category: string): 'niño' | 'hombre' | 'mujer' | 'unisex' {
-    if (!category) return 'unisex';
 
-    const cat = category.toLowerCase();
-    if (cat.includes('niño') || cat.includes('kid') || cat.includes('child')) return 'niño';
-    if (cat.includes('hombre') || cat.includes('men') || cat.includes('male')) return 'hombre';
-    if (cat.includes('mujer') || cat.includes('women') || cat.includes('female')) return 'mujer';
-    return 'unisex';
-  }
 
   /**
    * Eliminar ofertas duplicadas por referencia
