@@ -238,7 +238,19 @@ export class WorkflowEngine {
       case 'delay':
         await this.executeDelay(execution, params);
         break;
-        
+
+      case 'modules.browser-mcp':
+        await this.executeModuleBrowserMCP(execution, params);
+        break;
+
+      case 'modules.scraperr':
+        await this.executeModuleScraperr(execution, params);
+        break;
+
+      case 'modules.deepscrape':
+        await this.executeModuleDeepScrape(execution, params);
+        break;
+
       default:
         throw new Error(`Unknown action: ${step.action}`);
     }
@@ -388,6 +400,78 @@ export class WorkflowEngine {
     const logEntry = `[${timestamp}] ${message}`;
     execution.logs.push(logEntry);
     console.log(`[Workflow ${execution.id}] ${message}`);
+  }
+
+  /**
+   * Ejecutar módulo Browser-MCP
+   */
+  private async executeModuleBrowserMCP(execution: WorkflowExecution, params: any): Promise<void> {
+    this.log(execution, `🌐 Ejecutando Browser-MCP para ${params.url}`);
+
+    try {
+      // Necesitamos acceso a los métodos del orquestador
+      const offers = await this.orchestrator.executeBrowserMCP(
+        params.url,
+        execution.results.session || null,
+        params.sessionId || execution.results.sessionId
+      );
+
+      execution.results.browserMcpOffers = offers;
+      execution.results.browserMcpCount = offers.length;
+
+      this.log(execution, `✅ Browser-MCP completado: ${offers.length} ofertas extraídas`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      this.log(execution, `❌ Browser-MCP falló: ${errorMsg}`);
+      execution.results.browserMcpError = errorMsg;
+      throw error;
+    }
+  }
+
+  /**
+   * Ejecutar módulo Scraperr
+   */
+  private async executeModuleScraperr(execution: WorkflowExecution, params: any): Promise<void> {
+    this.log(execution, `🔍 Ejecutando Scraperr para ${params.url}`);
+
+    try {
+      const offers = await this.orchestrator.executeScraperr(
+        params.url,
+        execution.results.session || null,
+        params.sessionId || execution.results.sessionId
+      );
+
+      execution.results.scraperrOffers = offers;
+      execution.results.scraperrCount = offers.length;
+
+      this.log(execution, `✅ Scraperr completado: ${offers.length} ofertas extraídas`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      this.log(execution, `❌ Scraperr falló: ${errorMsg}`);
+      execution.results.scraperrError = errorMsg;
+      throw error;
+    }
+  }
+
+  /**
+   * Ejecutar módulo DeepScrape
+   */
+  private async executeModuleDeepScrape(execution: WorkflowExecution, params: any): Promise<void> {
+    this.log(execution, `🤖 Ejecutando DeepScrape para ${params.url}`);
+
+    try {
+      const offers = await this.orchestrator.executeDeepScrape(params.url);
+
+      execution.results.deepscrapeOffers = offers;
+      execution.results.deepscrapeCount = offers.length;
+
+      this.log(execution, `✅ DeepScrape completado: ${offers.length} ofertas extraídas`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      this.log(execution, `❌ DeepScrape falló: ${errorMsg}`);
+      execution.results.deepscrapeError = errorMsg;
+      throw error;
+    }
   }
 }
 

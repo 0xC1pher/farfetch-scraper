@@ -1,8 +1,38 @@
-import { SessionData } from '../modules/minio/index';
-import { Offer } from './types';
+import {
+  Offer,
+  IBrowserMCP,
+  IScraperr,
+  IDeepScrape,
+  Fingerprint
+} from './types';
 import { loadBrowserMCP, loadScraperr, loadDeepScrape } from '../utils/moduleLoader';
-import { minioStorage } from '../modules/minio/index';
 import { log } from '../services/logger';
+import { promises as fs } from 'fs';
+import { join } from 'path';
+
+// Tipo para sesión
+interface SessionData {
+  sessionId: string;
+  cookies: any[];
+  userId: string;
+  timestamp: Date;
+  status: string;
+  fingerprint?: any;
+}
+
+// Tipo para datos de scraping
+interface ScrapingData {
+  url: string;
+  selectors?: string[];
+  data: {
+    offers: Offer[];
+    timestamp: Date;
+    totalFound: number;
+    source: string;
+    [key: string]: any; // Permitir propiedades adicionales
+  };
+  timestamp: Date;
+}
 
 type OrchestratorOptions = {
   sessionId?: string;
@@ -17,16 +47,16 @@ type OrchestratorOptions = {
 };
 
 interface IOrchestratorDependencies {
-  browserMCP: any; // Reemplazar con el tipo correcto
-  scraperr: any;    // Reemplazar con el tipo correcto
-  deepscrape: any;  // Reemplazar con el tipo correcto
+  browserMCP: IBrowserMCP;
+  scraperr: IScraperr;
+  deepscrape: IDeepScrape;
 }
 
 export class Orchestrator {
-  private browserMCP: any;
-  private minio = minioStorage;
-  private scraperr: any;
-  private deepscrape: any;
+  private browserMCP: IBrowserMCP | null = null;
+  private scraperr: IScraperr | null = null;
+  private deepscrape: IDeepScrape | null = null;
+  private dataDirectory = join(process.cwd(), 'data', 'scraping');
 
   /**
    * Método de fábrica para crear una instancia del orquestador
@@ -104,17 +134,9 @@ export class Orchestrator {
       proxy
     } = options;
 
-    // 1. Intentar cargar sesión desde MinIO
+    // 1. Crear sesión temporal (sin persistencia)
     if (sessionId) {
-      try {
-        const session = await this.minio.loadSession(sessionId);
-        if (session && session.status === 'active') {
-          this.log(`✅ Sesión encontrada en MinIO: ${sessionId}`);
-          return session;
-        }
-      } catch (error) {
-        this.log(`⚠️ Error cargando sesión: ${error}`);
-      }
+      this.log(`🔄 Usando sessionId: ${sessionId}`);
     }
 
     // 2. Si no existe, hacer login si está permitido
@@ -122,7 +144,7 @@ export class Orchestrator {
       this.log('🔐 Iniciando login con Browser MCP...');
       
       try {
-        const loginResult = await this.browserMCP.login(email, password, {
+        const loginResult = await this.browserMCP!.login(email, password, {
           use2FA: false,
           fingerprint: this.generateFingerprint(fingerprintLevel),
           proxy
@@ -138,8 +160,7 @@ export class Orchestrator {
             status: 'active'
           };
           
-          await this.minio.saveSession(sessionData);
-          this.log(`💾 Sesión guardada en MinIO: ${sessionData.sessionId}`);
+          this.log(`✅ Sesión temporal creada: ${sessionData.sessionId}`);
           return sessionData;
         } else {
           throw new Error(`Login fallido: ${loginResult.error || 'Unknown error'}`);
@@ -160,8 +181,7 @@ export class Orchestrator {
     await this.ensureModulesLoaded();
     const {
       sessionId = '',
-      scrapeUrl = '',
-      maxRetries = 2
+      scrapeUrl = ''
     } = options;
 
     if (!scrapeUrl) {
@@ -169,104 +189,350 @@ export class Orchestrator {
     }
 
     let session: SessionData | null = null;
-    let retries = 0;
-    let lastError: any = null;
 
-    // 1. Cargar sesión
+    // 1. Crear sesión temporal
+    if (sessionId) {
+      session = {
+        sessionId,
+        cookies: [],
+        userId: '',
+        timestamp: new Date(),
+        status: 'active'
+      };
+      this.log(`✅ Sesión temporal: ${sessionId}`);
+    }
+
+    // 2. EJECUTAR LOS 3 MÓDULOS SECUENCIALMENTE
+    this.log(`🎯 Ejecutando scraping secuencial: Browser-MCP → Scraperr → DeepScrape`);
+
+    let allOffers: Offer[] = [];
+    let successfulModules = 0;
+    const moduleResults: { module: string; offers: Offer[]; success: boolean; error?: string }[] = [];
+
+    // PASO 1: Browser-MCP (Autenticación y scraping inicial)
+    this.log(`🌐 [1/3] Ejecutando Browser-MCP...`);
     try {
-      if (sessionId) {
-        session = await this.minio.loadSession(sessionId);
-        if (session) {
-          await this.scraperr.loadSession(session);
-          this.log(`✅ Sesión cargada: ${sessionId}`);
-        }
+      const browserOffers = await this.executeBrowserMCP(scrapeUrl, session, sessionId);
+      moduleResults.push({ module: 'browser-mcp', offers: browserOffers, success: browserOffers.length > 0 });
+
+      if (browserOffers.length > 0) {
+        allOffers.push(...browserOffers);
+        successfulModules++;
+        this.log(`✅ Browser-MCP: ${browserOffers.length} ofertas extraídas`);
+      } else {
+        this.log(`⚠️ Browser-MCP: Sin ofertas extraídas`);
       }
     } catch (error) {
-      this.log(`⚠️ Error cargando sesión: ${error}`);
-      // Continuar sin sesión si falla
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      moduleResults.push({ module: 'browser-mcp', offers: [], success: false, error: errorMsg });
+      this.log(`❌ Browser-MCP falló: ${errorMsg}`);
     }
 
-    // 2. Intentar scraping con reintentos y fallback
-    while (retries <= maxRetries) {
-      try {
-        this.log(`🔎 Scraping intento #${retries + 1} para ${scrapeUrl}`);
-        const offers = await this.scraperr.scrapeOffers(scrapeUrl, { 
-          useSession: !!session, 
-          sessionId,
-          timeout: 30000
-        });
-        
-        if (offers.length > 0) {
-          this.log(`✅ Scraping exitoso: ${offers.length} ofertas encontradas`);
-
-          // Guardar datos de scraping en MinIO para la API
-          try {
-            await this.minio.saveScrapingData({
-              url: scrapeUrl,
-              selectors: [], // Los selectores se manejan internamente en scraperr
-              data: { offers, timestamp: new Date(), totalFound: offers.length },
-              timestamp: new Date()
-            });
-            this.log(`📦 Datos de scraping guardados en MinIO`);
-          } catch (error) {
-            this.log(`⚠️ Error guardando datos de scraping: ${error}`);
-            // No fallar el scraping por error de guardado
-          }
-
-          return offers;
-        }
-        throw new Error('No se encontraron ofertas');
-      } catch (error) {
-        lastError = error;
-        this.log(`❌ Error en scraping: ${error}`);
-        retries++;
-        if (retries > maxRetries) break;
-        this.log('🔄 Reintentando scraping...');
-        await this.delay(2000 * retries);
-      }
-    }
-
-    // 3. Fallback a deepscrape si todo falla
-    this.log('🤖 Fallback a deepscrape...');
+    // PASO 2: Scraperr (Scraping con sesión establecida)
+    this.log(`🔍 [2/3] Ejecutando Scraperr...`);
     try {
-      const result = await this.deepscrape.resolve({
+      const scraperOffers = await this.executeScraperr(scrapeUrl, session, sessionId);
+      moduleResults.push({ module: 'scraperr', offers: scraperOffers, success: scraperOffers.length > 0 });
+
+      if (scraperOffers.length > 0) {
+        allOffers.push(...scraperOffers);
+        successfulModules++;
+        this.log(`✅ Scraperr: ${scraperOffers.length} ofertas extraídas`);
+      } else {
+        this.log(`⚠️ Scraperr: Sin ofertas extraídas`);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      moduleResults.push({ module: 'scraperr', offers: [], success: false, error: errorMsg });
+      this.log(`❌ Scraperr falló: ${errorMsg}`);
+    }
+
+    // PASO 3: DeepScrape (Fallback y scraping profundo)
+    this.log(`🤖 [3/3] Ejecutando DeepScrape...`);
+    try {
+      const deepOffers = await this.executeDeepScrape(scrapeUrl);
+      moduleResults.push({ module: 'deepscrape', offers: deepOffers, success: deepOffers.length > 0 });
+
+      if (deepOffers.length > 0) {
+        allOffers.push(...deepOffers);
+        successfulModules++;
+        this.log(`✅ DeepScrape: ${deepOffers.length} ofertas extraídas`);
+      } else {
+        this.log(`⚠️ DeepScrape: Sin ofertas extraídas`);
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      moduleResults.push({ module: 'deepscrape', offers: [], success: false, error: errorMsg });
+      this.log(`❌ DeepScrape falló: ${errorMsg}`);
+    }
+
+    // Filtrar ofertas duplicadas entre módulos
+    const uniqueOffers = this.removeDuplicateOffers(allOffers);
+    this.log(`🔍 Total: ${allOffers.length} ofertas → ${uniqueOffers.length} únicas de ${successfulModules}/3 módulos`);
+
+    // Guardar resumen consolidado con resultados de cada módulo
+    if (uniqueOffers.length > 0) {
+      this.log(`✅ Scraping secuencial exitoso: ${uniqueOffers.length} ofertas únicas`);
+
+      try {
+        await this.saveToLocalDirectory({
+          url: scrapeUrl,
+          selectors: [],
+          data: {
+            offers: uniqueOffers,
+            timestamp: new Date(),
+            totalFound: uniqueOffers.length,
+            source: 'sequential-workflow',
+            moduleResults,
+            successfulModules,
+            originalCount: allOffers.length,
+            duplicatesRemoved: allOffers.length - uniqueOffers.length
+          },
+          timestamp: new Date()
+        }, 'workflow-consolidated');
+        this.log(`📦 Resumen del workflow guardado en MinIO`);
+      } catch (error) {
+        this.log(`⚠️ Error guardando resumen del workflow: ${error}`);
+      }
+
+      return uniqueOffers;
+    }
+
+    // Si ningún módulo encontró ofertas
+    if (successfulModules === 0) {
+      this.log(`❌ Ningún módulo pudo extraer ofertas de ${scrapeUrl}`);
+      throw new Error('Todos los módulos de scraping fallaron');
+    }
+
+    this.log(`⚠️ Solo ${successfulModules}/3 módulos extrajeron ofertas exitosamente`);
+    return [];
+  }
+
+  /**
+   * Ejecutar Browser-MCP y guardar datos en MinIO
+   */
+  public async executeBrowserMCP(scrapeUrl: string, session: SessionData | null, sessionId: string): Promise<Offer[]> {
+    try {
+      this.log(`🌐 Ejecutando Browser-MCP para ${scrapeUrl}`);
+
+      const offers = await this.browserMCP!.scrapeOffers(scrapeUrl, {
+        useSession: !!session,
+        sessionId,
+        timeout: 40000
+      });
+
+      if (offers.length > 0) {
+        // Guardar datos específicos de Browser-MCP en directorio local
+        await this.saveToLocalDirectory({
+          url: scrapeUrl,
+          selectors: ['[data-testid="product-card"]', '.product-item'],
+          data: {
+            offers,
+            timestamp: new Date(),
+            totalFound: offers.length,
+            source: 'browser-mcp'
+          },
+          timestamp: new Date()
+        }, 'browser-mcp');
+
+        this.log(`📦 Browser-MCP: ${offers.length} ofertas guardadas localmente`);
+      }
+
+      return offers;
+    } catch (error) {
+      this.log(`❌ Error en Browser-MCP: ${error}`);
+      return [];
+    }
+  }
+
+  /**
+   * Ejecutar Scraperr y guardar datos en MinIO
+   */
+  public async executeScraperr(scrapeUrl: string, session: SessionData | null, sessionId: string): Promise<Offer[]> {
+    try {
+      this.log(`🔍 Ejecutando Scraperr para ${scrapeUrl}`);
+
+      if (session) {
+        await this.scraperr!.loadSession(session);
+      }
+
+      const offers = await this.scraperr!.scrapeOffers(scrapeUrl, {
+        useSession: !!session,
+        sessionId,
+        timeout: 45000,
+        waitForSelector: '[data-component="ProductCard"]',
+        scrollTimes: 5,
+        scrollDelay: 3000
+      });
+
+      if (offers.length > 0) {
+        // Guardar datos específicos de Scraperr en MinIO
+        await this.saveToLocalDirectory({
+          url: scrapeUrl,
+          selectors: [
+            '[data-component="ProductCard"]',
+            '[data-component="ProductCardPrice"]',
+            '.product-card'
+          ],
+          data: {
+            offers,
+            timestamp: new Date(),
+            totalFound: offers.length,
+            source: 'scraperr'
+          },
+          timestamp: new Date()
+        }, 'scraperr');
+
+        this.log(`📦 Scraperr: ${offers.length} ofertas guardadas en MinIO`);
+      }
+
+      return offers;
+    } catch (error) {
+      this.log(`❌ Error en Scraperr: ${error}`);
+      return [];
+    }
+  }
+
+  /**
+   * Ejecutar DeepScrape y guardar datos en MinIO
+   */
+  public async executeDeepScrape(scrapeUrl: string): Promise<Offer[]> {
+    try {
+      this.log(`🤖 Ejecutando DeepScrape para ${scrapeUrl}`);
+
+      const result = await this.deepscrape!.resolve({
         pageUrl: scrapeUrl,
-        elements: ['[data-testid="product-card"]', '.product-item', '.offer-card'],
+        elements: [
+          '[data-testid="product-card"]',
+          '.product-item',
+          '.offer-card',
+          '[data-component="ProductCard"]'
+        ],
         timeout: 30000
       });
 
       const offers = result.data || [];
-      
+
       if (offers.length > 0) {
-        this.log(`✅ Deepscrape exitoso: ${offers.length} ofertas encontradas`);
+        // Guardar datos específicos de DeepScrape en MinIO
+        await this.saveToLocalDirectory({
+          url: scrapeUrl,
+          selectors: [
+            '[data-testid="product-card"]',
+            '.product-item',
+            '.offer-card'
+          ],
+          data: {
+            offers,
+            timestamp: new Date(),
+            totalFound: offers.length,
+            source: 'deepscrape'
+          },
+          timestamp: new Date()
+        }, 'deepscrape');
 
-        // Guardar datos de scraping en MinIO para la API
-        try {
-          await this.minio.saveScrapingData({
-            url: scrapeUrl,
-            selectors: [], // Los selectores se manejan internamente en deepscrape
-            data: { offers, timestamp: new Date(), totalFound: offers.length, source: 'deepscrape' },
-            timestamp: new Date()
-          });
-          this.log(`📦 Datos de deepscrape guardados en MinIO`);
-        } catch (error) {
-          this.log(`⚠️ Error guardando datos de deepscrape: ${error}`);
-          // No fallar el scraping por error de guardado
-        }
-
-        return offers;
+        this.log(`📦 DeepScrape: ${offers.length} ofertas guardadas en MinIO`);
       }
-      throw new Error('Deepscrape tampoco encontró ofertas');
+
+      return offers;
     } catch (error) {
-      this.log(`❌ Fallback deepscrape fallido: ${error}`);
-      throw lastError || error;
+      this.log(`❌ Error en DeepScrape: ${error}`);
+      return [];
     }
+  }
+
+  /**
+   * Guardar datos en directorio local
+   */
+  private async saveToLocalDirectory(data: ScrapingData, module: string): Promise<void> {
+    try {
+      // Crear directorio si no existe
+      const moduleDir = join(this.dataDirectory, module);
+      await fs.mkdir(moduleDir, { recursive: true });
+
+      // Crear nombre de archivo con timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `${timestamp}-${Date.now()}.json`;
+      const filepath = join(moduleDir, filename);
+
+      // Guardar datos
+      await fs.writeFile(filepath, JSON.stringify(data, null, 2));
+      this.log(`💾 Datos guardados: ${filepath}`);
+    } catch (error) {
+      this.log(`❌ Error guardando datos: ${error}`);
+    }
+  }
+
+  /**
+   * Cargar datos desde directorio local
+   */
+  private async loadFromLocalDirectory(module?: string, limit: number = 10): Promise<ScrapingData[]> {
+    try {
+      const results: ScrapingData[] = [];
+      const searchDir = module ? join(this.dataDirectory, module) : this.dataDirectory;
+
+      // Verificar si el directorio existe
+      try {
+        await fs.access(searchDir);
+      } catch {
+        return [];
+      }
+
+      if (module) {
+        // Cargar archivos de un módulo específico
+        const files = await fs.readdir(searchDir);
+        const jsonFiles = files.filter(f => f.endsWith('.json')).sort().reverse().slice(0, limit);
+
+        for (const file of jsonFiles) {
+          try {
+            const content = await fs.readFile(join(searchDir, file), 'utf-8');
+            const data = JSON.parse(content);
+            results.push(data);
+          } catch (error) {
+            this.log(`⚠️ Error leyendo archivo ${file}: ${error}`);
+          }
+        }
+      } else {
+        // Cargar archivos de todos los módulos
+        const modules = await fs.readdir(searchDir);
+        for (const mod of modules) {
+          const modData = await this.loadFromLocalDirectory(mod, Math.ceil(limit / modules.length));
+          results.push(...modData);
+        }
+      }
+
+      return results.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    } catch (error) {
+      this.log(`❌ Error cargando datos: ${error}`);
+      return [];
+    }
+  }
+
+  /**
+   * Obtener todas las ofertas desde directorio local
+   */
+  public async getAllOffers(limit: number = 50): Promise<Offer[]> {
+    const allData = await this.loadFromLocalDirectory(undefined, limit);
+    const offers: Offer[] = [];
+
+    allData.forEach(data => {
+      if (data.data?.offers && Array.isArray(data.data.offers)) {
+        offers.push(...data.data.offers);
+      }
+    });
+
+    // Filtrar duplicados por ID
+    const uniqueOffers = offers.filter((offer, index, self) =>
+      index === self.findIndex(o => o.id === offer.id)
+    );
+
+    return uniqueOffers.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 
   /**
    * Generar fingerprint para Browser MCP
    */
-  private generateFingerprint(level: 'low' | 'medium' | 'high' = 'medium') {
+  private generateFingerprint(_level: 'low' | 'medium' | 'high' = 'medium'): Fingerprint {
     // Implementación básica de fingerprint
     return {
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -312,16 +578,15 @@ export class Orchestrator {
    */
   async getStats() {
     try {
-      const [browserStatus, scraperrStats, minioStatus] = await Promise.all([
-        this.browserMCP.getStatus(),
-        this.scraperr.getStatsAsync(),
-        this.minio.getStatus()
+      const [browserStatus, scraperrStats] = await Promise.all([
+        this.browserMCP!.getStatus(),
+        this.scraperr!.getStatsAsync()
       ]);
 
       return {
         browserMCP: browserStatus,
         scraperr: scraperrStats,
-        minio: minioStatus,
+        localStorage: { available: true, directory: this.dataDirectory },
         timestamp: new Date()
       };
     } catch (error) {
@@ -340,6 +605,54 @@ export class Orchestrator {
       this.log(`⚠️ Error al cerrar sesión: ${error}`);
       throw error;
     }
+  }
+
+  /**
+   * Remover ofertas duplicadas basándose en título y precio
+   */
+  private removeDuplicateOffers(offers: Offer[]): Offer[] {
+    const uniqueMap = new Map<string, Offer>();
+
+    offers.forEach(offer => {
+      // Crear clave única basada en título normalizado y precio
+      const normalizedTitle = offer.title.toLowerCase().replace(/\s+/g, ' ').trim();
+      const key = `${normalizedTitle}_${offer.price}`;
+
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, offer);
+      } else {
+        // Si ya existe, mantener el que tenga más información
+        const existing = uniqueMap.get(key)!;
+        if (this.isOfferMoreComplete(offer, existing)) {
+          uniqueMap.set(key, offer);
+        }
+      }
+    });
+
+    return Array.from(uniqueMap.values());
+  }
+
+  /**
+   * Determinar si una oferta es más completa que otra
+   */
+  private isOfferMoreComplete(offer1: Offer, offer2: Offer): boolean {
+    let score1 = 0;
+    let score2 = 0;
+
+    // Puntos por tener información completa
+    if (offer1.brand) score1++;
+    if (offer2.brand) score2++;
+
+    if (offer1.originalPrice) score1++;
+    if (offer2.originalPrice) score2++;
+
+    if (offer1.imageUrl) score1++;
+    if (offer2.imageUrl) score2++;
+
+    if (offer1.url) score1++;
+    if (offer2.url) score2++;
+
+    return score1 > score2;
   }
 
 }

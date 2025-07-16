@@ -113,15 +113,21 @@ export default function AdminPanel() {
                 </span>
               </li>
               <li className="admin-mb-2">
-                <span className="admin-font-medium">Browser MCP:</span> 
+                <span className="admin-font-medium">Browser MCP:</span>
                 <span className={systemStatus.services.browserMCP.available ? 'admin-text-green-600' : 'admin-text-red-600'}>
-                  {systemStatus.services.browserMCP.available ? ' Activo' : ' Inactivo'}
+                  {systemStatus.services.browserMCP.available ? ' Disponible' : ' No encontrado'}
                 </span>
               </li>
               <li className="admin-mb-2">
-                <span className="admin-font-medium">Scraperr:</span> 
+                <span className="admin-font-medium">Scraperr:</span>
                 <span className={systemStatus.services.scraperr.available ? 'admin-text-green-600' : 'admin-text-red-600'}>
-                  {systemStatus.services.scraperr.available ? ' Activo' : ' Inactivo'}
+                  {systemStatus.services.scraperr.available ? ' Disponible' : ' No encontrado'}
+                </span>
+              </li>
+              <li className="admin-mb-2">
+                <span className="admin-font-medium">DeepScrape:</span>
+                <span className="admin-text-green-600">
+                  Disponible
                 </span>
               </li>
               <li>

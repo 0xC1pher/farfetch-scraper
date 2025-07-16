@@ -650,36 +650,7 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
     await this.handleFiltersCommand(chatId); // Mostrar menú de filtros actualizado
   }
 
-  /**
-   * Obtener URL de imagen válida, reemplazando URLs de ejemplo con imágenes reales
-   */
-  private getValidImageUrl(imageUrl: string | null): string | null {
-    if (!imageUrl) return null;
 
-    // Si es una URL de ejemplo o placeholder, usar imagen real
-    if (imageUrl.includes('example.com') ||
-        imageUrl.includes('placeholder') ||
-        imageUrl.includes('farfetch-contents.com')) {
-      // Usar imágenes reales de productos de moda de Unsplash
-      const realImages = [
-        'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=400&h=600&fit=crop',
-        'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=400&h=600&fit=crop',
-        'https://images.unsplash.com/photo-1571945153237-4929e783af4a?w=400&h=600&fit=crop',
-        'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&h=600&fit=crop',
-        'https://images.unsplash.com/photo-1551107696-a4b0c5a0d9a2?w=400&h=600&fit=crop'
-      ];
-
-      // Seleccionar imagen basada en hash del ID para consistencia
-      const hash = imageUrl.split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0);
-        return a & a;
-      }, 0);
-
-      return realImages[Math.abs(hash) % realImages.length];
-    }
-
-    return imageUrl;
-  }
 
   /**
    * Limpiar filtros
@@ -772,8 +743,8 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
                   ...offer,
                   source: data.data?.source || module,
                   extractedAt: data.timestamp,
-                  // Mapear diferentes campos de imagen a imageUrl y usar imágenes reales
-                  imageUrl: this.getValidImageUrl(offer.imageUrl || offer.image || offer.img || offer.src),
+                  // Mapear diferentes campos de imagen a imageUrl
+                  imageUrl: offer.imageUrl || offer.image || offer.img || offer.src || null,
                   // Asegurar que tenga los campos básicos
                   id: offer.id || `${module}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
                   title: offer.title || offer.name || 'Producto sin título',

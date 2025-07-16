@@ -115,12 +115,12 @@ export class TelegramOffersService {
         }
       }
 
-      // Procesar datos de Browser-MCP (sesiones con productos)
+      // Procesar datos de Browser-MCP (sesiones con ofertas)
       for (const item of browserMcpData) {
-        if (item.data && item.data.products) {
-          for (const product of item.data.products) {
-            const offer = this.convertBrowserMcpToTelegramOffer(product, item);
-            if (offer) offers.push(offer);
+        if (item.data && item.data.offers) {
+          for (const offer of item.data.offers) {
+            const telegramOffer = this.convertBrowserMcpToTelegramOffer(offer, item);
+            if (telegramOffer) offers.push(telegramOffer);
           }
         }
       }
@@ -251,23 +251,28 @@ export class TelegramOffersService {
       return {
         id: `browser-mcp_${product.id || Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         precio: parseFloat(product.price) || 0,
-        referencia: product.reference || 'N/A',
+        precioOriginal: parseFloat(product.originalPrice) || parseFloat(product.price) || 0,
+        referencia: product.reference || product.id || 'N/A',
         categoria: this.mapCategory(product.category),
         cantidadDisponible: product.stock || 1,
         estatus: 'disponible',
         imagenes: [{
-          url: product.image || '/assets/placeholder.jpg',
+          id: `img-${product.id || Date.now()}`,
+          url: product.imageUrl || product.image || '/assets/placeholder.jpg',
           width: 375,
           height: 667,
-          optimized: true
+          alt: product.title || 'Producto',
+          isMain: true
         }],
         marca: product.brand || 'Unknown',
         titulo: product.title || 'Producto de sesión autenticada',
-        descripcion: product.description || product.desc,
+        descripcion: product.description || product.desc || `${product.brand} ${product.title}`,
+        url: product.url || 'https://www.farfetch.com',
         tallas: Array.isArray(product.sizes) ? product.sizes : [],
         colores: Array.isArray(product.colors) ? product.colors : [],
         descuento: product.discount || 0,
         fechaCreacion: item.timestamp || new Date().toISOString(),
+        timestamp: product.timestamp || item.timestamp || new Date().toISOString(),
         fuente: 'browser-mcp'
       };
     } catch (error) {

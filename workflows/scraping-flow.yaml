@@ -37,16 +37,38 @@ steps:
       duration: 2000
     condition: "sessionId"
 
-  - name: "Execute Scraping"
-    action: "scraping.scrape"
+  - name: "Execute Browser-MCP"
+    action: "modules.browser-mcp"
     params:
       url: "${scrapeUrl}"
       sessionId: "${sessionId}"
-      maxRetries: "${maxRetries}"
+      useSession: true
     retry:
       attempts: 2
-      delay: 5000
-    timeout: 120000
+      delay: 3000
+    timeout: 60000
+
+  - name: "Execute Scraperr"
+    action: "modules.scraperr"
+    params:
+      url: "${scrapeUrl}"
+      sessionId: "${sessionId}"
+      useSession: true
+      scrollTimes: 5
+    retry:
+      attempts: 2
+      delay: 3000
+    timeout: 60000
+
+  - name: "Execute DeepScrape"
+    action: "modules.deepscrape"
+    params:
+      url: "${scrapeUrl}"
+      elements: ["[data-testid='product-card']", ".product-item", ".offer-card"]
+    retry:
+      attempts: 2
+      delay: 3000
+    timeout: 45000
 
   - name: "Apply Filters"
     action: "data.filter"

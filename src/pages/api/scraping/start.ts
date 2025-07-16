@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { Orchestrator } from '../../../orchestrator/orchestrator';
+import { SimpleOrchestrator } from '../../../orchestrator/simple-orchestrator';
 
 interface ScrapingRequest {
   sessionId: string;
@@ -62,11 +62,11 @@ export default async function handler(
     // Generar ID único para el trabajo
     const jobId = `scrape_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
-    // Usar el orquestador para el scraping
-    const orchestrator = new Orchestrator();
-    
+    // Usar el orquestador simple para el scraping
+    const orchestrator = await SimpleOrchestrator.create();
+
     console.log(`[API] Starting scraping job ${jobId} for URL: ${scrapeUrl}`);
-    
+
     const offers = await orchestrator.scrapeWithSession({
       sessionId,
       scrapeUrl,
