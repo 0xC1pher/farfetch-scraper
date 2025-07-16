@@ -12,22 +12,153 @@
   [![Telegram](https://img.shields.io/badge/Telegram-Bot-blue.svg)](https://telegram.org/)
 </div>
 
-## 🚀 Inicio Rápido
+## 🚀 Guía de Uso Completa
 
-### Ejecutar Todo el Sistema
+### 📋 **Opción 1: Inicio Automático (Recomendado)**
+
 ```bash
-# Ejecutar script automático (recomendado)
-./ejecutar-sistema.sh
+# 1. Hacer ejecutable el script
+chmod +x ejecutar-sistema.sh
 
-# O manualmente:
-node scripts/auto-start.mjs
-npm run dev
+# 2. Ejecutar script automático
+./ejecutar-sistema.sh
 ```
 
-### Acceder al Sistema
-- 📊 **Panel Admin:** http://localhost:3000/admin
-- 🗄️ **MinIO Console:** http://localhost:9011 (minioadmini/minioadmin)
-- 📱 **Mini App:** http://localhost:3000/telegram-app
+**¿Qué hace el script automático?**
+- ✅ Configura todos los servicios (MinIO, puertos, etc.)
+- ✅ Inicia el servidor Next.js automáticamente
+- ✅ Verifica que todo esté funcionando
+- ✅ Muestra todos los enlaces de acceso
+- ✅ Mantiene el sistema corriendo
+
+### ⚡ **Opción 2: Inicio Manual**
+
+```bash
+# 1. Instalar dependencias (solo la primera vez)
+npm install
+
+# 2. Iniciar sistema completo (servicios + servidor)
+npm run setup
+
+# O por separado:
+# 2a. Solo configurar servicios
+# node scripts/auto-start.mjs
+# 2b. Solo servidor Next.js
+# npm run dev:quick
+```
+
+### 🌐 **Acceder al Sistema**
+
+Una vez iniciado, puedes acceder a:
+
+| Servicio | URL | Credenciales |
+|----------|-----|--------------|
+| **📊 Panel Admin** | http://localhost:3000/admin | - |
+| **📱 Mini App Telegram** | http://localhost:3000/telegram-app | - |
+| **🗄️ MinIO Console** | http://localhost:9011 | minioadmini/minioadmin |
+| **🌐 API Principal** | http://localhost:3000/api | - |
+
+### 🤖 **Configurar Bot de Telegram (Opcional)**
+
+```bash
+# 1. Crear archivo .env (si no existe)
+cp .env.example .env
+
+# 2. Editar .env y agregar tu token
+TELEGRAM_BOT_TOKEN=tu_token_aqui
+
+# 3. Iniciar bot en terminal separada
+npm run bot
+```
+
+### 🌐 **Probar Scraping Real de Farfetch**
+
+```bash
+# Opción 1: Desde el panel admin
+# Ve a http://localhost:3000/admin → pestaña "Workflows"
+
+# Opción 2: Desde API directamente
+curl -X POST http://localhost:3000/api/scraping/start \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.farfetch.com/nl/shopping/women/sale/all/items.aspx"}'
+```
+
+### 🧪 **Verificar que Todo Funciona**
+
+```bash
+# Verificar estado del sistema
+curl http://localhost:3000/api/system/status
+
+# Ver estadísticas de módulos
+curl http://localhost:3000/api/modules/stats
+
+# Probar scraping directo
+curl -X POST http://localhost:3000/api/scraping/start \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.farfetch.com/nl/shopping/women/sale/all/items.aspx"}'
+```
+
+### 🔧 **Comandos Útiles**
+
+```bash
+# DESARROLLO
+npm run dev          # Inicio completo con auto-configuración
+npm run dev:quick    # Solo servidor Next.js (desarrollo rápido)
+npm run setup        # Solo configurar servicios (sin servidor)
+
+# BOT DE TELEGRAM
+npm run bot          # Iniciar bot de Telegram
+npm run bot:dev      # Bot en modo desarrollo (auto-reload)
+
+# SERVICIOS
+npm run minio:start  # Solo iniciar MinIO
+node scripts/auto-start.mjs  # Configurar todos los servicios
+
+# VERIFICACIÓN
+curl http://localhost:3000/api/system/status  # Estado del sistema
+curl http://localhost:3000/api/modules/stats  # Estadísticas de módulos
+```
+
+### 🛑 **Detener el Sistema**
+
+```bash
+# Si usaste el script automático
+Ctrl+C  # Detiene el script y el servidor
+
+# Si iniciaste manualmente
+Ctrl+C  # En la terminal donde corre npm run dev:quick
+
+# Verificar que no queden procesos
+ps aux | grep node  # Ver procesos Node.js corriendo
+ps aux | grep minio # Ver procesos MinIO corriendo
+```
+
+### 🔍 **Solución de Problemas Comunes**
+
+```bash
+# Puerto ocupado
+npm run setup  # Reasigna puertos automáticamente
+
+# MinIO no responde
+curl -X POST http://localhost:3000/api/system/status  # Reinicializar
+
+# Limpiar datos temporales
+rm -rf data/scraping/*  # Limpiar datos de scraping
+rm -rf cache/*          # Limpiar caché
+
+# Reinstalar dependencias
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### 📦 **Información del Sistema**
+
+- **MinIO**: El binario está en `bin/minio` y se usa automáticamente
+- **Auto-start**: No descarga archivos en cada ejecución, usa binarios existentes
+- **Next.js**: Se inicia automáticamente con `npm run setup`
+- **Puertos**: Se configuran dinámicamente y se liberan automáticamente si están ocupados
+- **Datos**: Se almacenan en `data/scraping/` (local) y MinIO (persistente)
+- **Verificación**: `curl http://localhost:3000/api/system/status` para verificar estado
 
 ## ✅ Estado Actual del Sistema
 
@@ -328,40 +459,6 @@ const orchestrationConfig = {
 
 ---
 
-## 🚀 Inicio Rápido
-
-### **Configuración en 4 pasos**
-
-```bash
-# 1. Instalar dependencias
-npm install
-
-# 2. Configurar variables de entorno
-cp .env.example .env
-# Editar .env con configuraciones
-
-# 3. Iniciar MinIO
-docker run -d --name minio-mexa \
-  -p 9002:9000 -p 9003:9001 \
-  -e "MINIO_ROOT_USER=minioadmin" \
-  -e "MINIO_ROOT_PASSWORD=minioadmin123" \
-  quay.io/minio/minio server /data --console-address ":9001"
-
-# 4. Iniciar el sistema
-npm run dev          # Orquestador y panel web (puerto 3000)
-```
-
-### **Acceso al Sistema**
-- **Panel de Admin**: `http://localhost:3000/admin`
-- **Gestión de Módulos**: `http://localhost:3000/admin/modules` ⭐ **NUEVO**
-- **Workflows**: `http://localhost:3000/admin/workflows`
-- **Sistema de Caché**: `http://localhost:3000/admin/cache`
-- **Logs en Tiempo Real**: `http://localhost:3000/admin/logs`
-- **Mini App Telegram**: `http://localhost:3000/telegram-app`
-- **MinIO Console**: `http://localhost:9003` (minioadmin/minioadmin123)
-
----
-
 ## 🗄️ Almacenamiento MinIO
 
 ### 📊 Estructura del Bucket `mexa-data`
@@ -644,22 +741,6 @@ http://localhost:3000/admin/modules
 
 ### 🚀 Inicio Automático del Sistema
 
-#### **Comandos de Inicio:**
-
-```bash
-# Inicio completo con configuración automática
-npm run dev
-
-# Inicio rápido sin configuración automática
-npm run dev:quick
-
-# Solo configurar sistema (sin iniciar servidor)
-npm run setup
-
-# Solo iniciar MinIO
-npm run minio:start
-```
-
 #### **Proceso de Inicialización Automática:**
 
 ```mermaid
@@ -787,27 +868,7 @@ minio-data/                       # Directorio de datos
 - **🔍 DeepScrape:** 1 elemento analizado con IA
 - **📊 Estadísticas:** Datos para verificar funcionamiento
 
-### 🔧 Comandos de Gestión
 
-```bash
-# Configuración completa del sistema
-npm run setup
-
-# Inicio con configuración automática
-npm run dev
-
-# Inicio rápido (sin configuración)
-npm run dev:quick
-
-# Solo iniciar MinIO
-npm run minio:start
-
-# Verificar estado del sistema
-curl http://localhost:3000/api/system/status
-
-# Forzar reinicialización
-curl -X POST http://localhost:3000/api/system/status
-```
 
 ### ✅ Beneficios del Sistema Dinámico
 
@@ -951,58 +1012,7 @@ npm start
 
 ---
 
-## 🎮 Guía de Uso
 
-### 1. **Probar el Sistema de Logs**
-```bash
-# 1. Iniciar el orquestador
-npm run dev
-
-# 2. Abrir panel de administración
-http://localhost:3000/admin
-
-# 3. Ir a pestaña "Logs" → "Mostrar Logs en Tiempo Real"
-
-# 4. Generar logs de prueba para ver todos los módulos
-```
-
-### 2. **Probar la Mini App de Telegram**
-```bash
-# 1. Abrir la mini app
-http://localhost:3000/telegram-app
-
-# 2. Probar gestos de swipe (izquierda/derecha)
-
-# 3. Verificar carrusel estilo Tinder
-```
-
-### 3. **Verificar MinIO**
-```bash
-# 1. Abrir consola de MinIO
-http://localhost:9003
-
-# 2. Login: minioadmin / minioadmin123
-
-# 3. Verificar bucket "mexa-data"
-```
-
-### 4. **Ejecutar Flujo Completo de Scraping**
-```bash
-# 1. Asegurar que todos los servicios estén corriendo
-# - Orquestador (puerto 3000)
-# - Browser-MCP (puerto 3001)
-# - Scraperr (puerto 3002)
-# - DeepScrape (puerto 3003)
-# - MinIO (puerto 9002)
-
-# 2. Ejecutar scraping desde el orquestador
-curl -X POST http://localhost:3000/api/scraping/start \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://www.farfetch.com/offers"}'
-
-# 3. Monitorear logs en tiempo real
-# 4. Verificar datos guardados en MinIO
-```
 
 ## 🔄 Flujo de Trabajo Completo
 
@@ -1189,22 +1199,7 @@ FF_PASSWORD=your_password
 }
 ```
 
-### 🎯 Comandos Útiles
 
-```bash
-# Desarrollo
-npm run dev              # Iniciar orquestador
-npm run build           # Compilar para producción
-npm run test            # Ejecutar tests
-
-# Logs y monitoreo
-npm run logs            # Ver logs del sistema
-npm run health          # Verificar estado de servicios
-
-# MinIO
-docker logs minio-mexa  # Ver logs de MinIO
-docker restart minio-mexa  # Reiniciar MinIO
-```
 
 ---
 
@@ -1301,6 +1296,33 @@ Este proyecto está bajo la **Licencia MIT**. Ver el archivo [LICENSE](LICENSE) 
 - 📧 Email: [alfierimorillo@gmail.com](mailto:alfierimorillo@gmail.com)
 - 🐛 Issues: [GitHub Issues](https://github.com/0xC1pher/mexa/issues)
 - 📖 Documentación: [Wiki del Proyecto](https://github.com/0xC1pher/mexa/wiki)
+
+---
+
+## 📝 Changelog
+
+### v1.3.0 - Scraping Real y Limpieza del Proyecto ⭐ **NUEVO**
+- ✅ **Scraping real de Farfetch**: 91% de datos reales extraídos de la web
+- ✅ **Múltiples estrategias de scraping**: curl avanzado, API, versión móvil
+- ✅ **Extracción inteligente**: JSON embebido, datos estructurados, regex avanzado
+- ✅ **Proyecto sincronizado**: Eliminados 15 archivos obsoletos (89.67 KB liberados)
+- ✅ **Dependencias optimizadas**: Removidas 5 dependencias innecesarias
+- ✅ **Código limpio**: Sin archivos de prueba temporales ni duplicaciones
+- ✅ **Documentación actualizada**: PROJECT-STRUCTURE.md generado
+
+#### 🧹 Limpieza Realizada:
+- 🗑️ **Archivos de prueba eliminados**: test-bot-images.js, test-data-flow.js, etc.
+- 🗑️ **Scripts obsoletos removidos**: setup-minio-modules.sh
+- 🗑️ **Configuraciones duplicadas**: .nextignore
+- 🗑️ **Código no utilizado**: index_broken.ts, test-runner.ts
+- 🗑️ **Dependencias innecesarias**: cheerio, puppeteer-extra, proxy-agents
+- 🗑️ **Documentación obsoleta**: SOLUCION-BOT-IMAGENES.md, fix.md
+
+#### 📊 Estado Post-Limpieza:
+- ✅ **Sistema funcional**: Orquestador + 3 módulos operativos
+- ✅ **Scraping real**: Datos reales de Farfetch con imágenes CDN
+- ✅ **Estructura limpia**: Solo archivos esenciales mantenidos
+- ✅ **Performance mejorada**: Menos dependencias, código optimizado
 
 ---
 

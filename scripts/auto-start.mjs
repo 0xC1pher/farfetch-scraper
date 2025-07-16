@@ -41,7 +41,10 @@ class AutoStart {
       // 5. Iniciar Bot de Telegram
       await this.ensureTelegramBotRunning();
 
-      // 6. Verificar que todo esté listo
+      // 6. Iniciar servidor Next.js
+      await this.startNextJSServer();
+
+      // 7. Verificar que todo esté listo
       await this.verifySystem();
 
       console.log('\n✅ Sistema Mexa listo para usar!');
@@ -214,21 +217,50 @@ class AutoStart {
 
   async ensureMinioBinary() {
     const fs = await import('fs');
-    const minioPath = path.join(this.projectRoot, 'minio');
 
-    // Verificar si el binario existe
-    if (fs.existsSync(minioPath)) {
-      console.log('📦 Binario MinIO encontrado');
+    // Verificar primero en el directorio bin/ (ubicación preferida)
+    const minioBinPath = path.join(this.projectRoot, 'bin', 'minio');
+    const minioRootPath = path.join(this.projectRoot, 'minio');
+
+    // Prioridad 1: Verificar si existe en bin/
+    if (fs.existsSync(minioBinPath)) {
+      console.log('📦 Binario MinIO encontrado en bin/');
+      // Crear symlink en la raíz si no existe para compatibilidad
+      if (!fs.existsSync(minioRootPath)) {
+        try {
+          await execAsync(`ln -sf bin/minio minio`, { cwd: this.projectRoot });
+          console.log('🔗 Symlink creado: minio -> bin/minio');
+        } catch (error) {
+          // Si falla el symlink, copiar el archivo
+          await execAsync(`cp bin/minio minio && chmod +x minio`, { cwd: this.projectRoot });
+          console.log('📋 Binario copiado desde bin/ a raíz');
+        }
+      }
       return;
     }
 
-    console.log('📥 Descargando MinIO...');
+    // Prioridad 2: Verificar si existe en la raíz
+    if (fs.existsSync(minioRootPath)) {
+      console.log('📦 Binario MinIO encontrado en raíz');
+      return;
+    }
+
+    // Solo descargar si no existe en ningún lugar
+    console.log('📥 Binario MinIO no encontrado, descargando...');
     try {
+      // Crear directorio bin/ si no existe
+      await execAsync('mkdir -p bin', { cwd: this.projectRoot });
+
+      // Descargar a bin/ y crear symlink
       await execAsync(
-        'wget https://dl.min.io/server/minio/release/linux-amd64/minio -O minio && chmod +x minio',
+        'wget https://dl.min.io/server/minio/release/linux-amd64/minio -O bin/minio && chmod +x bin/minio',
         { cwd: this.projectRoot }
       );
-      console.log('✅ MinIO descargado exitosamente');
+
+      // Crear symlink en la raíz para compatibilidad
+      await execAsync(`ln -sf bin/minio minio`, { cwd: this.projectRoot });
+
+      console.log('✅ MinIO descargado exitosamente en bin/');
     } catch (error) {
       throw new Error('No se pudo descargar MinIO: ' + error.message);
     }
@@ -327,6 +359,66 @@ class AutoStart {
       return false;
     }
   }
+
+  async startNextJSServer() {
+    console.log('🌐 Iniciando servidor Next.js...');
+
+    try {
+      // Matar cualquier proceso Next.js existente en puerto 3000
+      await this.killProcessOnPort(3000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      console.log('🚀 Iniciando servidor Next.js en puerto 3000...');
+
+      // Iniciar Next.js en background
+      const nextProcess = spawn('npm', ['run', 'dev:quick'], {
+        cwd: this.projectRoot,
+        detached: true,
+        stdio: ['ignore', 'ignore', 'ignore'],
+        env: {
+          ...process.env,
+          PORT: '3000'
+        }
+      });
+
+      nextProcess.unref();
+
+      // Esperar a que inicie
+      console.log('⏳ Esperando a que Next.js esté listo...');
+      await new Promise(resolve => setTimeout(resolve, 8000));
+
+      // Verificar que está respondiendo
+      const isResponding = await this.checkNextJSResponse();
+      if (isResponding) {
+        console.log('✅ Servidor Next.js iniciado exitosamente en http://localhost:3000');
+      } else {
+        console.log('⚠️ Servidor Next.js iniciado pero puede tardar en responder');
+        console.log('🔗 Accede a: http://localhost:3000/admin');
+      }
+
+    } catch (error) {
+      console.error('❌ Error iniciando servidor Next.js:', error.message);
+      console.log('⚠️ Puedes iniciarlo manualmente con: npm run dev:quick');
+    }
+  }
+
+  async checkNextJSResponse() {
+    try {
+      // Verificar que el puerto está ocupado
+      const isOccupied = !(await this.isPortAvailable(3000));
+      if (!isOccupied) {
+        return false;
+      }
+
+      // Intentar hacer request simple
+      await execAsync('curl -s --max-time 3 http://localhost:3000 > /dev/null');
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+
 
   async verifySystem() {
     console.log('🔍 Verificando sistema...');

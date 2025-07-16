@@ -67,7 +67,7 @@ export class MexaTelegramBot {
   constructor(config: BotConfig) {
     this.config = {
       maxOffersPerMessage: 10,
-      defaultFilters: { maxPrice: 1000, minDiscount: 0 },
+      defaultFilters: { maxPrice: 5000, minDiscount: 0 },
       ...config
     };
 
