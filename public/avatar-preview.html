@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Avatar MeXa Bot</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .preview-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .avatar-preview {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+        }
+
+        .avatar-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin: 0 auto 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            background: white;
+        }
+
+        .avatar-circle img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-small {
+            width: 60px;
+            height: 60px;
+        }
+
+        .avatar-mini {
+            width: 40px;
+            height: 40px;
+        }
+
+        .telegram-chat {
+            background: #ffffff;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 15px;
+        }
+
+        .chat-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 15px;
+            overflow: hidden;
+        }
+
+        .chat-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .chat-info h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        .chat-info p {
+            margin: 5px 0 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .message {
+            background: #e3f2fd;
+            padding: 12px 16px;
+            border-radius: 18px;
+            margin: 10px 0;
+            max-width: 80%;
+            position: relative;
+        }
+
+        .bot-message {
+            background: #f0f0f0;
+            margin-left: auto;
+            text-align: left;
+        }
+
+        .instructions {
+            background: #e8f5e8;
+            border: 2px solid #4caf50;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .instructions h3 {
+            color: #2e7d32;
+            margin-top: 0;
+        }
+
+        .step {
+            margin: 10px 0;
+            padding: 8px 0;
+        }
+
+        .step-number {
+            background: #4caf50;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .file-info {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .specs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .spec-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #ddd;
+        }
+
+        .spec-item h4 {
+            margin: 0 0 10px;
+            color: #333;
+        }
+
+        .checkmark {
+            color: #4caf50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Preview Avatar MeXa Bot</h1>
+        
+        <div class="preview-section">
+            <h2>👀 Cómo se verá el avatar</h2>
+            
+            <div class="avatar-preview">
+                <div class="avatar-circle">
+                    <img src="assets/avatar-telegram-512.png" alt="Avatar MeXa 512px">
+                </div>
+                <p><strong>Tamaño grande</strong><br>512x512px</p>
+            </div>
+            
+            <div class="avatar-preview">
+                <div class="avatar-circle avatar-small">
+                    <img src="assets/avatar-telegram-256.png" alt="Avatar MeXa 256px">
+                </div>
+                <p><strong>Tamaño mediano</strong><br>256x256px</p>
+            </div>
+            
+            <div class="avatar-preview">
+                <div class="avatar-circle avatar-mini">
+                    <img src="assets/avatar-telegram-128.png" alt="Avatar MeXa 128px">
+                </div>
+                <p><strong>Tamaño pequeño</strong><br>128x128px</p>
+            </div>
+        </div>
+
+        <div class="preview-section">
+            <h2>💬 Simulación de chat de Telegram</h2>
+            
+            <div class="telegram-chat">
+                <div class="chat-header">
+                    <div class="chat-avatar">
+                        <img src="assets/avatar-telegram-256.png" alt="Avatar MeXa">
+                    </div>
+                    <div class="chat-info">
+                        <h3>MeXa Shopping Bot</h3>
+                        <p>@Shopping_MeXa_bot • Bot</p>
+                    </div>
+                </div>
+                
+                <div class="message bot-message">
+                    🛍️ <strong>¡Bienvenido a MeXa Bot!</strong><br><br>
+                    Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.<br><br>
+                    <strong>Comandos disponibles:</strong><br>
+                    /search - Buscar ofertas<br>
+                    /help - Mostrar ayuda
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>📱 Instrucciones para configurar en Telegram</h3>
+            
+            <div class="step">
+                <span class="step-number">1</span>
+                Abre Telegram y busca <strong>@BotFather</strong>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">2</span>
+                Envía el comando: <code>/setuserpic</code>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">3</span>
+                Selecciona tu bot de la lista
+            </div>
+            
+            <div class="step">
+                <span class="step-number">4</span>
+                Sube el archivo: <code>public/assets/avatar-telegram-512.png</code>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">5</span>
+                Confirma la imagen y ¡listo!
+            </div>
+        </div>
+
+        <div class="file-info">
+            <h3>📁 Archivo a usar</h3>
+            <p><strong>Archivo principal:</strong> <code>avatar-telegram-512.png</code></p>
+            <p><strong>Tamaño:</strong> 34KB</p>
+            <p><strong>Ubicación:</strong> <code>public/assets/avatar-telegram-512.png</code></p>
+        </div>
+
+        <div class="specs">
+            <div class="spec-item">
+                <h4>✅ Especificaciones</h4>
+                <p><span class="checkmark">✓</span> Formato: PNG</p>
+                <p><span class="checkmark">✓</span> Tamaño: 512x512px</p>
+                <p><span class="checkmark">✓</span> Fondo: Transparente</p>
+                <p><span class="checkmark">✓</span> Calidad: Máxima</p>
+            </div>
+            
+            <div class="spec-item">
+                <h4>🎨 Diseño</h4>
+                <p><span class="checkmark">✓</span> Logo MeXa centrado</p>
+                <p><span class="checkmark">✓</span> Gradientes corporativos</p>
+                <p><span class="checkmark">✓</span> Texto legible</p>
+                <p><span class="checkmark">✓</span> Optimizado para círculo</p>
+            </div>
+        </div>
+
+        <p style="margin-top: 40px; color: #666;">
+            🎉 <strong>¡Tu bot tendrá un avatar profesional y reconocible!</strong>
+        </p>
+    </div>
+</body>
+</html>
