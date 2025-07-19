@@ -226,16 +226,101 @@ export class SimpleOrchestrator {
   }
 
   /**
-   * Ejecutar Browser-MCP
+   * Ejecutar Browser-MCP con múltiples categorías
    */
   public async executeBrowserMCP(scrapeUrl: string, session: SimpleSession): Promise<Offer[]> {
     try {
-      this.log(`🌐 Ejecutando Browser-MCP para ${scrapeUrl}`);
-      
-      const offers = await this.browserMCP!.scrapeOffers(scrapeUrl, {
-        useSession: !!session.sessionId,
-        timeout: 30000
-      });
+      this.log(`🌐 Ejecutando Browser-MCP con múltiples categorías...`);
+
+      // Verificar si la URL es específica de una categoría o usar todas
+      const isSpecificCategory = scrapeUrl.includes('/women/') || scrapeUrl.includes('/men/') || scrapeUrl.includes('/kids/');
+
+      let offers: Offer[] = [];
+
+      if (isSpecificCategory) {
+        // URL específica - usar scraping normal
+        this.log(`🎯 URL específica detectada: ${scrapeUrl}`);
+        offers = await this.browserMCP!.scrapeOffers(scrapeUrl, {
+          useSession: !!session.sessionId,
+          timeout: 30000
+        });
+      } else {
+        // URL general - usar scraping MASIVO de múltiples categorías y páginas
+        this.log(`🌐 Iniciando scraping MASIVO de todas las categorías con múltiples páginas...`);
+
+        const categories = [
+          {
+            name: 'women',
+            urls: [
+              'https://www.farfetch.com/nl/shopping/women/sale/all/items.aspx',
+              'https://www.farfetch.com/nl/shopping/women/sale/all/items.aspx?page=2',
+              'https://www.farfetch.com/nl/shopping/women/sale/all/items.aspx?page=3',
+              'https://www.farfetch.com/nl/shopping/women/sale/all/items.aspx?page=4'
+            ]
+          },
+          {
+            name: 'men',
+            urls: [
+              'https://www.farfetch.com/nl/shopping/men/sale/all/items.aspx',
+              'https://www.farfetch.com/nl/shopping/men/sale/all/items.aspx?page=2',
+              'https://www.farfetch.com/nl/shopping/men/sale/all/items.aspx?page=3',
+              'https://www.farfetch.com/nl/shopping/men/sale/all/items.aspx?page=4'
+            ]
+          },
+          {
+            name: 'kids',
+            urls: [
+              'https://www.farfetch.com/nl/shopping/kids/sale/all/items.aspx',
+              'https://www.farfetch.com/nl/shopping/kids/sale/all/items.aspx?page=2',
+              'https://www.farfetch.com/nl/shopping/kids/sale/all/items.aspx?page=3'
+            ]
+          }
+        ];
+
+        for (const category of categories) {
+          this.log(`🔍 Scraping categoría: ${category.name.toUpperCase()} (${category.urls.length} páginas)`);
+
+          for (let pageIndex = 0; pageIndex < category.urls.length; pageIndex++) {
+            const url = category.urls[pageIndex];
+            const pageNum = pageIndex + 1;
+
+            try {
+              this.log(`   📄 Página ${pageNum}/${category.urls.length}: ${url}`);
+
+              const categoryOffers = await this.browserMCP!.scrapeOffers(url, {
+                useSession: !!session.sessionId,
+                timeout: 30000
+              });
+
+              // Marcar ofertas con categoría y página
+              const markedOffers = categoryOffers.map(offer => ({
+                ...offer,
+                category: category.name,
+                page: pageNum,
+                extractedFrom: url
+              }));
+
+              offers.push(...markedOffers);
+              this.log(`   ✅ Página ${pageNum}: ${categoryOffers.length} ofertas extraídas`);
+
+              // Pausa entre páginas
+              await new Promise(resolve => setTimeout(resolve, 1500));
+
+            } catch (error) {
+              this.log(`   ❌ Error en página ${pageNum} de ${category.name}: ${error}`);
+            }
+          }
+
+          this.log(`✅ ${category.name.toUpperCase()} completado: ${offers.filter(o => o.category === category.name).length} ofertas totales`);
+
+          // Pausa entre categorías
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
+        // Eliminar duplicados avanzados
+        offers = this.removeDuplicateOffersAdvanced(offers);
+        this.log(`🔍 Total después de eliminar duplicados: ${offers.length} ofertas únicas`);
+      }
 
       if (offers.length > 0) {
         await this.saveToLocalDirectory({
@@ -244,11 +329,12 @@ export class SimpleOrchestrator {
             offers,
             timestamp: new Date(),
             totalFound: offers.length,
-            source: 'browser-mcp'
+            source: 'browser-mcp',
+            categories: isSpecificCategory ? ['single'] : ['women', 'men', 'kids']
           },
           timestamp: new Date()
         }, 'browser-mcp');
-        
+
         this.log(`📦 Browser-MCP: ${offers.length} ofertas guardadas localmente`);
       }
 
@@ -369,6 +455,54 @@ export class SimpleOrchestrator {
       audioContext: 44100,
       lastRotation: new Date()
     };
+  }
+
+  /**
+   * Eliminación avanzada de duplicados
+   */
+  private removeDuplicateOffersAdvanced(offers: Offer[]): Offer[] {
+    this.log('🔍 Eliminando duplicados avanzados...');
+
+    const seen = new Map();
+    const uniqueOffers = offers.filter(offer => {
+      // Múltiples criterios para detectar duplicados
+      const criteria = [
+        // Criterio 1: Título + precio exacto
+        `title-price:${offer.title?.toLowerCase().trim()}-${offer.price}`,
+
+        // Criterio 2: URL de imagen (más confiable)
+        offer.imageUrl ? `image:${offer.imageUrl}` : null,
+
+        // Criterio 3: Título normalizado + marca
+        `title-brand:${offer.title?.toLowerCase().replace(/[^\w]/g, '')}-${offer.brand?.toLowerCase()}`,
+
+        // Criterio 4: ID específico si existe
+        offer.id?.includes('farfetch') ? `id:${offer.id}` : null
+      ].filter(Boolean);
+
+      // Verificar si algún criterio ya existe
+      for (const criterion of criteria) {
+        if (seen.has(criterion)) {
+          const existing = seen.get(criterion);
+          this.log(`⚠️ Duplicado detectado por ${criterion.split(':')[0]}: ${offer.title} (ya existe: ${existing.title})`);
+          return false;
+        }
+      }
+
+      // Registrar todos los criterios para esta oferta
+      criteria.forEach(criterion => {
+        seen.set(criterion, {
+          title: offer.title,
+          price: offer.price,
+          category: (offer as any).category
+        });
+      });
+
+      return true;
+    });
+
+    this.log(`✅ Duplicados eliminados: ${uniqueOffers.length}/${offers.length} ofertas únicas`);
+    return uniqueOffers;
   }
 
   /**
