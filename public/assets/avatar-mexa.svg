@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradientes optimizados para avatar -->
+  <defs>
+    <linearGradient id="avatarGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#ff6b9d;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGradientAvatar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f8f9fa;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#f8f9fa;stop-opacity:0.7" />
+    </linearGradient>
+    <filter id="glowAvatar" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shadowAvatar" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.3)"/>
+    </filter>
+  </defs>
+  
+  <!-- Fondo circular principal -->
+  <circle cx="256" cy="256" r="240" fill="url(#avatarGradient)" filter="url(#shadowAvatar)"/>
+  
+  <!-- Círculo interior con brillo -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  
+  <!-- Icono hexagonal grande y centrado -->
+  <g transform="translate(256, 180)">
+    <!-- Hexágono exterior -->
+    <polygon points="0,-60 52,-30 52,30 0,60 -52,30 -52,-30" 
+             fill="url(#iconGradient)" 
+             stroke="rgba(255,255,255,0.4)" 
+             stroke-width="3"
+             filter="url(#glowAvatar)"/>
+    
+    <!-- Hexágono interior -->
+    <polygon points="0,-40 35,-20 35,20 0,40 -35,20 -35,-20" 
+             fill="rgba(255,255,255,0.8)"/>
+    
+    <!-- Círculo central con gradiente -->
+    <circle cx="0" cy="0" r="20" fill="url(#avatarGradient)" filter="url(#glowAvatar)"/>
+    
+    <!-- Punto central brillante -->
+    <circle cx="0" cy="0" r="8" fill="rgba(255,255,255,0.9)"/>
+  </g>
+  
+  <!-- Texto MeXa grande y legible -->
+  <text x="256" y="340" 
+        font-family="Arial, sans-serif" 
+        font-size="72" 
+        font-weight="bold" 
+        fill="url(#textGradientAvatar)" 
+        text-anchor="middle"
+        filter="url(#glowAvatar)">
+    Me<tspan fill="#ffffff">X</tspan>a
+  </text>
+  
+  <!-- Elementos decorativos -->
+  <circle cx="150" cy="120" r="8" fill="rgba(255,255,255,0.6)" filter="url(#glowAvatar)"/>
+  <circle cx="380" cy="140" r="6" fill="rgba(255,255,255,0.5)" filter="url(#glowAvatar)"/>
+  <circle cx="120" cy="380" r="10" fill="rgba(255,255,255,0.4)" filter="url(#glowAvatar)"/>
+  <circle cx="400" cy="360" r="7" fill="rgba(255,255,255,0.5)" filter="url(#glowAvatar)"/>
+  
+  <!-- Brillo superior -->
+  <ellipse cx="256" cy="120" rx="80" ry="20" fill="rgba(255,255,255,0.2)" filter="url(#glowAvatar)"/>
+</svg>
