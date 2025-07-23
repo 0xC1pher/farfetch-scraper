@@ -1,0 +1,109 @@
+[project]
+name = "web-scrape"
+version = "0.1.0"
+description = ""
+authors = [{ name = "Jayden Pyles", email = "jpylesbuisness@gmail.com" }]
+dependencies = [
+    "uvicorn>=0.30.1",
+    "fastapi>=0.111.0",
+    "boto3>=1.34.140",
+    "python-dotenv>=1.0.1",
+    "boto3-stubs[essential]>=1.34.140",
+    "asyncio>=3.4.3",
+    "aiohttp>=3.9.5",
+    "bs4>=0.0.2",
+    "lxml[html_clean]>=5.2.2",
+    "lxml-stubs>=0.5.1",
+    "fake-useragent>=1.5.1",
+    "requests-html>=0.10.0",
+    "webdriver-manager>=4.0.1",
+    "pydantic[email]>=2.9.2",
+    "pandas>=2.2.2",
+    "openpyxl>=3.1.5",
+    "xlsxwriter>=3.2.0",
+    "python-keycloak>=4.2.0",
+    "fastapi-keycloak>=1.0.11",
+    "pymongo>=4.8.0",
+    "motor[asyncio]>=3.5.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "selenium-wire>=5.1.0",
+    "blinker<1.8.0",
+    "setuptools>=71.0.4",
+    "docker>=7.1.0",
+    "ollama>=0.3.0",
+    "openai>=1.37.1",
+    "exceptiongroup>=1.2.2",
+    "Faker>=30.6.0",
+    "pytest-asyncio>=0.24.0",
+    "python-multipart>=0.0.1",
+    "bcrypt==4.0.1",
+    "apscheduler>=3.11.0",
+    "playwright>=1.52.0",
+    "camoufox>=0.4.11",
+    "html2text>=2025.4.15",
+    "proxy-py>=2.4.10",
+    "browserforge==1.2.1",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = { text = "MIT" }
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = ["ipython>=8.26.0", "pytest>=8.3.3"]
+[tool.pyright]
+include = ["./api/backend/"]
+exclude = ["**/node_modules", "**/__pycache__"]
+ignore = []
+defineConstant = { DEBUG = true }
+stubPath = ""
+
+# Type checking strictness
+typeCheckingMode = "strict"                        # Enables strict type checking mode
+reportPrivateUsage = "none"
+reportMissingTypeStubs = "none"
+reportUntypedFunctionDecorator = "error"
+reportUntypedClassDecorator = "error"
+reportUntypedBaseClass = "error"
+reportInvalidTypeVarUse = "error"
+reportUnnecessaryTypeIgnoreComment = "information"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+
+# Additional checks
+reportImplicitStringConcatenation = "error"
+reportInvalidStringEscapeSequence = "error"
+reportMissingImports = "error"
+reportMissingModuleSource = "error"
+reportOptionalCall = "error"
+reportOptionalIterable = "error"
+reportOptionalMemberAccess = "error"
+reportOptionalOperand = "error"
+reportOptionalSubscript = "error"
+reportTypedDictNotRequiredAccess = "error"
+
+# Function return type checking
+reportIncompleteStub = "error"
+reportIncompatibleMethodOverride = "error"
+reportInvalidStubStatement = "error"
+reportInconsistentOverload = "error"
+
+# Misc settings
+pythonVersion = "3.10"           # Matches your Python version from pyproject.toml
+strictListInference = true
+strictDictionaryInference = true
+strictSetInference = true
+
+
+[tool.isort]
+length_sort = true
+profile = "black"
+sections = ["STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+import_heading_stdlib = "STL"
+import_heading_thirdparty = "PDM"
+import_heading_firstparty = "LOCAL"
+import_heading_localfolder = "LOCAL"
