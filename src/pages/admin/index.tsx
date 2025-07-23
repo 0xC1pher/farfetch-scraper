@@ -3,6 +3,7 @@ import LogsTab from './LogsTab';
 import WorkflowsTab from './workflows';
 import CacheTab from './cache';
 import ModulesTab from './ModulesTab';
+import { AppleAuthPanel } from '../../components/admin/AppleAuthPanel';
 
 // Tipos para los datos reales
 interface SystemStatus {
@@ -24,6 +25,7 @@ interface BotStatus {
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
+  { key: 'apple-auth', label: 'Apple Auth' },
   { key: 'logs', label: 'Logs' },
   { key: 'workflows', label: 'Workflows' },
   { key: 'cache', label: 'Cache' },
@@ -278,6 +280,17 @@ export default function AdminPanel() {
       </div>
 
       {activeTab === 'dashboard' && renderDashboard()}
+
+      {activeTab === 'apple-auth' && (
+        <div className="admin-card admin-mt-4">
+          <div className="admin-card-header">
+            <h3 className="admin-card-title">Autenticación Apple</h3>
+          </div>
+          <div style={{margin: 0, padding: '1rem'}}>
+            <AppleAuthPanel />
+          </div>
+        </div>
+      )}
 
       {activeTab === 'logs' && (
         <div className="admin-card admin-mt-4">
