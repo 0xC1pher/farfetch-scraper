@@ -1,6 +1,10 @@
 import { AppleSeleniumDriver, AppleLoginOptions, AppleLoginResult } from '../selenium-driver/apple-login';
+import { AppleDirectAuth } from '../alternative-auth/apple-direct-auth';
 import { SessionStorage, AppleSession } from '../storage/session-storage';
 import { TwoFactorHandler } from './two-factor';
+import { PlaywrightStealthDriver } from '../advanced-scraping/playwright-stealth';
+import { PuppeteerStealthDriver } from '../advanced-scraping/puppeteer-stealth';
+import { ProxyRotationDriver } from '../advanced-scraping/proxy-rotation';
 
 export interface AppleAuthConfig {
   email?: string;
@@ -24,14 +28,24 @@ export interface AppleAuthStatus {
 
 export class AppleAuthManager {
   private driver: AppleSeleniumDriver;
+  private directAuth: AppleDirectAuth;
   private sessionStorage: SessionStorage;
   private twoFactorHandler: TwoFactorHandler;
+  private playwrightDriver: PlaywrightStealthDriver;
+  private puppeteerDriver: PuppeteerStealthDriver;
+  private proxyDriver: ProxyRotationDriver;
   private currentSession: AppleSession | null = null;
+  private useDirectAuth: boolean = false;
+  private advancedMode: boolean = false;
 
   constructor() {
     this.driver = new AppleSeleniumDriver();
+    this.directAuth = new AppleDirectAuth();
     this.sessionStorage = new SessionStorage();
     this.twoFactorHandler = new TwoFactorHandler();
+    this.playwrightDriver = new PlaywrightStealthDriver();
+    this.puppeteerDriver = new PuppeteerStealthDriver();
+    this.proxyDriver = new ProxyRotationDriver();
   }
 
   /**
@@ -75,27 +89,168 @@ export class AppleAuthManager {
   }
 
   /**
-   * Realizar login en Apple
+   * Realizar login en Apple con técnicas ULTRA-AVANZADAS
    */
   async performLogin(options: AppleLoginOptions): Promise<AppleAuthStatus> {
     try {
-      console.log('🔐 Iniciando proceso de login Apple...');
-      
-      const result = await this.driver.login(options);
+      console.log('🔐 Iniciando proceso de login Apple ULTRA-AVANZADO...');
 
-      if (result.success && result.sessionId) {
-        // Login exitoso
-        const session = await this.sessionStorage.loadSession(result.sessionId);
-        if (session) {
+      let result;
+
+      // 🚀 ESTRATEGIA 1: Playwright Stealth (MÁS AVANZADO)
+      if (!this.useDirectAuth) {
+        try {
+          console.log('🎭 Intentando con Playwright Stealth (Ultra-Avanzado)...');
+          await this.playwrightDriver.initialize(options);
+          result = await this.playwrightDriver.login(options);
+
+          if (result.success) {
+            console.log('✅ Autenticación Playwright Stealth exitosa');
+            await this.playwrightDriver.close();
+            // Convertir resultado a formato AppleAuthStatus
+            const session = await this.sessionStorage.createSession({
+              sessionId: result.sessionToken || `playwright_${Date.now()}`,
+              email: options.email,
+              timestamp: new Date(),
+              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 horas
+              isValid: true,
+              loginMethod: 'playwright-stealth'
+            });
+            this.currentSession = session;
+            return {
+              isAuthenticated: true,
+              sessionId: session.sessionId,
+              email: session.email,
+              lastLogin: session.timestamp,
+              expiresAt: session.expiresAt
+            };
+          }
+          await this.playwrightDriver.close();
+        } catch (playwrightError) {
+          console.log('❌ Error Playwright Stealth:', playwrightError instanceof Error ? playwrightError.message : String(playwrightError));
+          await this.playwrightDriver.close();
+        }
+      }
+
+      // 🚀 ESTRATEGIA 2: Puppeteer Stealth
+      try {
+        console.log('🎭 Intentando con Puppeteer Stealth...');
+        await this.puppeteerDriver.initialize(options);
+        result = await this.puppeteerDriver.login(options);
+
+        if (result.success) {
+          console.log('✅ Autenticación Puppeteer Stealth exitosa');
+          await this.puppeteerDriver.close();
+          const session = await this.sessionStorage.createSession({
+            sessionId: result.sessionToken || `puppeteer_${Date.now()}`,
+            email: options.email,
+            timestamp: new Date(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            isValid: true,
+            loginMethod: 'puppeteer-stealth'
+          });
           this.currentSession = session;
-          console.log('✅ Autenticación Apple completada exitosamente');
-          
           return {
             isAuthenticated: true,
             sessionId: session.sessionId,
             email: session.email,
             lastLogin: session.timestamp,
             expiresAt: session.expiresAt
+          };
+        }
+        await this.puppeteerDriver.close();
+      } catch (puppeteerError) {
+        console.log('❌ Error Puppeteer Stealth:', puppeteerError instanceof Error ? puppeteerError.message : String(puppeteerError));
+        await this.puppeteerDriver.close();
+      }
+
+      // 🚀 ESTRATEGIA 3: Proxy Rotation
+      try {
+        console.log('🔄 Intentando con Proxy Rotation...');
+        result = await this.proxyDriver.login({
+          email: options.email,
+          password: options.password,
+          maxRetries: 5
+        });
+
+        if (result.success) {
+          console.log('✅ Autenticación Proxy Rotation exitosa');
+          const session = await this.sessionStorage.createSession({
+            sessionId: result.sessionToken || `proxy_${Date.now()}`,
+            email: options.email,
+            timestamp: new Date(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            isValid: true,
+            loginMethod: 'proxy-rotation'
+          });
+          this.currentSession = session;
+          return {
+            isAuthenticated: true,
+            sessionId: session.sessionId,
+            email: session.email,
+            lastLogin: session.timestamp,
+            expiresAt: session.expiresAt
+          };
+        }
+      } catch (proxyError) {
+        console.log('❌ Error Proxy Rotation:', proxyError instanceof Error ? proxyError.message : String(proxyError));
+      }
+
+      // 🚀 ESTRATEGIA 4: Selenium Robusto (Fallback)
+      if (!this.useDirectAuth) {
+        try {
+          console.log('🔧 Intentando autenticación con Selenium Robusto...');
+          result = await this.driver.login(options);
+
+          if (result.success) {
+            console.log('✅ Autenticación Selenium exitosa');
+            // Continuar con el flujo normal de Selenium
+          }
+        } catch (seleniumError) {
+          console.log('⚠️ Selenium falló, cambiando a autenticación directa...');
+          console.log('Error Selenium:', seleniumError);
+          this.useDirectAuth = true;
+        }
+      }
+
+      // 🚀 ESTRATEGIA 5: Implementación Directa (Último recurso)
+      if (this.useDirectAuth || !result || !result.success) {
+        console.log('🔄 Usando implementación directa (último recurso)...');
+        await this.directAuth.initialize();
+        result = await this.directAuth.login(options.email, options.password, {
+          headless: options.headless,
+          timeout: options.timeout,
+          proxy: options.proxy
+        });
+      }
+
+      if (result.success) {
+        // Login exitoso - manejar tanto Selenium como implementación directa
+        if (result.sessionId) {
+          // Resultado de Selenium
+          const session = await this.sessionStorage.loadSession(result.sessionId);
+          if (session) {
+            this.currentSession = session;
+            console.log('✅ Autenticación Apple completada exitosamente (Selenium)');
+
+            return {
+              isAuthenticated: true,
+              sessionId: session.sessionId,
+              email: session.email,
+              lastLogin: session.timestamp,
+              expiresAt: session.expiresAt
+            };
+          }
+        } else if (result.sessionToken) {
+          // Resultado de implementación directa
+          console.log('✅ Autenticación Apple completada exitosamente (Directa)');
+
+          return {
+            isAuthenticated: true,
+            sessionId: result.sessionToken,
+            email: result.userInfo?.email || 'unknown',
+            lastLogin: new Date(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
           };
         }
       } else if (result.requires2FA && result.twoFactorToken) {

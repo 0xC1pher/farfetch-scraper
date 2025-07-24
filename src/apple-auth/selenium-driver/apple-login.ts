@@ -23,9 +23,78 @@ export class AppleSeleniumDriver {
   private driver: WebDriver | null = null;
   private sessionStorage: SessionStorage;
   private isInitialized = false;
+  private retryCount = 0;
+  private maxRetries = 5;
 
   constructor() {
     this.sessionStorage = new SessionStorage();
+  }
+
+  /**
+   * Función auxiliar para reintentar operaciones con backoff exponencial
+   */
+  private async retryWithBackoff<T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`🔄 ${operationName} - Intento ${attempt + 1}/${maxRetries}`);
+        const result = await operation();
+        console.log(`✅ ${operationName} - Éxito en intento ${attempt + 1}`);
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.log(`⚠️ ${operationName} - Intento ${attempt + 1} falló: ${errorMessage}`);
+
+        if (attempt === maxRetries - 1) {
+          console.log(`❌ ${operationName} - Todos los intentos fallaron`);
+          throw error;
+        }
+
+        // Backoff exponencial: 1s, 2s, 4s, 8s...
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`⏳ Esperando ${delay}ms antes del siguiente intento...`);
+        await this.sleep(delay);
+      }
+    }
+
+    throw new Error(`${operationName} falló después de ${maxRetries} intentos`);
+  }
+
+  /**
+   * Función auxiliar para esperar
+   */
+  private async sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Verificar si el driver está activo y funcional
+   */
+  private async isDriverActive(): Promise<boolean> {
+    try {
+      if (!this.driver) return false;
+      await this.driver.getTitle();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Reinicializar el driver si es necesario
+   */
+  private async ensureDriverActive(options: AppleLoginOptions): Promise<void> {
+    const isActive = await this.isDriverActive();
+    if (!isActive) {
+      console.log('🔄 Driver no activo, reinicializando...');
+      await this.close();
+      this.isInitialized = false;
+      await this.initialize(options);
+    }
   }
 
   /**
@@ -39,22 +108,82 @@ export class AppleSeleniumDriver {
     try {
       const chromeOptions = new ChromeOptions();
       
-      // Configuración básica
+      // Configuración básica para Linux/Chromium - ULTRA ROBUSTA
       chromeOptions.addArguments('--no-sandbox');
       chromeOptions.addArguments('--disable-dev-shm-usage');
       chromeOptions.addArguments('--disable-blink-features=AutomationControlled');
       chromeOptions.addArguments('--disable-extensions');
       chromeOptions.addArguments('--no-first-run');
       chromeOptions.addArguments('--disable-default-apps');
-      
-      // User agent realista
-      chromeOptions.addArguments('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
-      // Configuración de ventana
-      if (options.headless) {
-        chromeOptions.addArguments('--headless=new');
+      chromeOptions.addArguments('--disable-background-timer-throttling');
+      chromeOptions.addArguments('--disable-backgrounding-occluded-windows');
+      chromeOptions.addArguments('--disable-renderer-backgrounding');
+      chromeOptions.addArguments('--disable-features=TranslateUI');
+      chromeOptions.addArguments('--disable-ipc-flooding-protection');
+
+      // Configuraciones adicionales para estabilidad extrema
+      chromeOptions.addArguments('--disable-crash-reporter');
+      chromeOptions.addArguments('--disable-in-process-stack-traces');
+      chromeOptions.addArguments('--disable-logging');
+      chromeOptions.addArguments('--disable-dev-tools');
+      chromeOptions.addArguments('--disable-plugins');
+      chromeOptions.addArguments('--disable-plugins-discovery');
+      chromeOptions.addArguments('--disable-preconnect');
+      chromeOptions.addArguments('--disable-translate');
+      chromeOptions.addArguments('--disable-sync');
+      chromeOptions.addArguments('--disable-background-networking');
+
+      // Configuración específica para sistemas Linux
+      chromeOptions.addArguments('--disable-setuid-sandbox');
+      chromeOptions.addArguments('--no-zygote');
+      chromeOptions.addArguments('--disable-gpu-sandbox');
+      chromeOptions.addArguments('--disable-software-rasterizer');
+      chromeOptions.addArguments('--disable-background-timer-throttling');
+      chromeOptions.addArguments('--disable-backgrounding-occluded-windows');
+      chromeOptions.addArguments('--disable-renderer-backgrounding');
+      chromeOptions.addArguments('--disable-field-trial-config');
+      chromeOptions.addArguments('--disable-hang-monitor');
+      chromeOptions.addArguments('--disable-prompt-on-repost');
+      chromeOptions.addArguments('--disable-sync');
+      chromeOptions.addArguments('--force-color-profile=srgb');
+      chromeOptions.addArguments('--metrics-recording-only');
+      chromeOptions.addArguments('--no-first-run');
+      chromeOptions.addArguments('--enable-automation');
+      chromeOptions.addArguments('--password-store=basic');
+      chromeOptions.addArguments('--use-mock-keychain');
+
+      // Lista de User Agents para rotación
+      const userAgents = [
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+      ];
+
+      // Seleccionar User Agent aleatorio
+      const randomUserAgent = userAgents[Math.floor(Math.random() * userAgents.length)];
+      chromeOptions.addArguments(`--user-agent=${randomUserAgent}`);
+
+      // Especificar la ruta de Chromium si está disponible
+      const chromiumPath = '/usr/bin/chromium';
+      try {
+        const fs = require('fs');
+        if (fs.existsSync(chromiumPath)) {
+          chromeOptions.setChromeBinaryPath(chromiumPath);
+          console.log('🔧 Usando Chromium desde:', chromiumPath);
+        }
+      } catch (error) {
+        console.log('⚠️ No se pudo verificar la ruta de Chromium, usando configuración por defecto');
       }
-      chromeOptions.addArguments('--window-size=1366,768');
+      
+      // Configuración de ventana - SIEMPRE headless para estabilidad
+      chromeOptions.addArguments('--headless=new');
+      chromeOptions.addArguments('--disable-gpu');
+      chromeOptions.addArguments('--window-size=1920,1080');
+      chromeOptions.addArguments('--virtual-time-budget=5000');
+
+      console.log('🔧 Configurando Chrome en modo headless para estabilidad');
       
       // Configurar proxy si se proporciona
       if (options.proxy) {
@@ -62,10 +191,19 @@ export class AppleSeleniumDriver {
         console.log('🌐 Proxy configurado:', options.proxy);
       }
 
-      // Configuraciones anti-detección
+      // Configuraciones anti-detección y estabilidad
       chromeOptions.excludeSwitches('enable-automation');
       chromeOptions.addArguments('--disable-web-security');
       chromeOptions.addArguments('--allow-running-insecure-content');
+      chromeOptions.addArguments('--disable-features=VizDisplayCompositor');
+      chromeOptions.addArguments('--disable-logging');
+      chromeOptions.addArguments('--disable-gpu-logging');
+      chromeOptions.addArguments('--silent');
+      chromeOptions.addArguments('--log-level=3');
+
+      // Configuración de timeouts más largos
+      chromeOptions.addArguments('--timeout=60000');
+      chromeOptions.addArguments('--page-load-strategy=normal');
       
       this.driver = await new Builder()
         .forBrowser('chrome')
@@ -88,90 +226,332 @@ export class AppleSeleniumDriver {
   }
 
   /**
-   * Realizar login en Apple
+   * Realizar login en Apple con máxima robustez
    */
   async login(options: AppleLoginOptions): Promise<AppleLoginResult> {
+    this.retryCount++;
+
     try {
-      await this.initialize(options);
-      
+      console.log(`🍎 Iniciando login en Apple ID (Intento ${this.retryCount}/${this.maxRetries})...`);
+
+      // Inicializar con reintentos
+      await this.retryWithBackoff(
+        () => this.initialize(options),
+        'Inicialización del driver',
+        3,
+        2000
+      );
+
       if (!this.driver) {
-        throw new Error('Driver not initialized');
+        throw new Error('Driver not initialized after retries');
       }
 
-      console.log('🍎 Iniciando login en Apple ID...');
+      // Navegar a Apple ID con reintentos robustos
+      await this.retryWithBackoff(
+        async () => {
+          await this.ensureDriverActive(options);
 
-      // Navegar a Apple ID con retry
-      let navigationSuccess = false;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          await this.driver.get('https://appleid.apple.com/sign-in');
+          console.log('🌐 Navegando a Apple ID...');
+          await this.driver!.get('https://appleid.apple.com/sign-in');
 
-          // Esperar a que cargue la página
-          await this.driver.wait(until.titleContains('Apple'), 15000);
-          navigationSuccess = true;
-          break;
-        } catch (error) {
-          console.log(`⚠️ Intento ${attempt + 1} de navegación falló, reintentando...`);
-          if (attempt === 2) throw error;
-          await this.driver.sleep(2000);
-        }
-      }
+          // Verificar múltiples condiciones de carga exitosa
+          const verificationPromises = [
+            // Intentar esperar por título
+            this.driver!.wait(until.titleContains('Apple'), 15000).catch(() => null),
+            // Intentar esperar por body
+            this.driver!.wait(until.elementLocated(By.css('body')), 10000).catch(() => null),
+            // Intentar esperar por cualquier input
+            this.driver!.wait(until.elementLocated(By.css('input')), 8000).catch(() => null)
+          ];
 
-      if (!navigationSuccess) {
-        throw new Error('No se pudo navegar a Apple ID después de 3 intentos');
-      }
+          // Esperar a que al menos una verificación sea exitosa
+          const results = await Promise.allSettled(verificationPromises);
+          const hasSuccess = results.some(result => result.status === 'fulfilled' && result.value !== null);
 
-      console.log('✅ Página de Apple ID cargada correctamente');
-      
-      // Buscar y llenar email - múltiples selectores
-      let emailField;
-      try {
-        emailField = await this.driver.wait(
-          until.elementLocated(By.css('input[type="email"], input[name="accountName"], input[id*="account"], input[placeholder*="email"], input[placeholder*="Apple ID"]')),
-          15000
-        );
-      } catch (error) {
-        // Intentar selectores alternativos
-        emailField = await this.driver.wait(
-          until.elementLocated(By.css('input[type="text"]:first-of-type, .form-textbox-input:first-of-type')),
-          10000
-        );
-      }
-      await emailField.clear();
-      await emailField.sendKeys(options.email);
+          if (!hasSuccess) {
+            throw new Error('Página no cargó correctamente - ninguna verificación exitosa');
+          }
 
-      // Buscar y llenar password - múltiples selectores
-      let passwordField;
-      try {
-        passwordField = await this.driver.wait(
-          until.elementLocated(By.css('input[type="password"], input[name="password"], input[id*="password"]')),
-          10000
-        );
-      } catch (error) {
-        // Intentar selector alternativo
-        passwordField = await this.driver.wait(
-          until.elementLocated(By.css('.form-textbox-input[type="password"]')),
-          5000
-        );
-      }
-      await passwordField.clear();
-      await passwordField.sendKeys(options.password);
+          // Esperar estabilización
+          await this.sleep(3000);
 
-      // Hacer clic en el botón de login - múltiples selectores
-      let loginButton;
-      try {
-        loginButton = await this.driver.wait(
-          until.elementLocated(By.css('button[type="submit"], input[type="submit"], button[id*="sign"], .signin-button, .form-submit-button')),
-          5000
-        );
-      } catch (error) {
-        // Intentar selector alternativo
-        loginButton = await this.driver.wait(
-          until.elementLocated(By.css('button:contains("Sign In"), button:contains("Continue"), .btn-primary')),
-          5000
-        );
-      }
-      await loginButton.click();
+          // Verificar URL final
+          const currentUrl = await this.driver!.getCurrentUrl();
+          const title = await this.driver!.getTitle();
+
+          console.log(`🌐 URL actual: ${currentUrl}`);
+          console.log(`📄 Título actual: ${title}`);
+
+          if (!currentUrl.includes('apple') && !title.toLowerCase().includes('apple')) {
+            throw new Error(`URL/título no parece ser de Apple: ${currentUrl} / ${title}`);
+          }
+
+          console.log('✅ Navegación a Apple ID exitosa');
+        },
+        'Navegación a Apple ID',
+        5,
+        3000
+      );
+
+      // Buscar y llenar email con reintentos robustos
+      const emailField = await this.retryWithBackoff(
+        async () => {
+          await this.ensureDriverActive(options);
+
+          console.log('🔍 Buscando campo de email...');
+
+          const emailSelectors = [
+            // Selectores específicos de Apple ID más actualizados
+            'input[id="account_name_text_field"]',
+            'input[name="accountName"]',
+            'input[id="accountName"]',
+            'input[data-testid="account-name"]',
+            'input[data-testid="username"]',
+            'input[data-testid="email"]',
+            'input[aria-label*="Apple ID"]',
+            'input[aria-label*="email"]',
+            'input[aria-label*="username"]',
+            'input[placeholder*="Apple ID"]',
+            'input[placeholder*="email"]',
+            'input[placeholder*="username"]',
+            // Selectores por tipo
+            'input[type="email"]',
+            'input[type="text"]',
+            // Selectores por clase CSS
+            '.form-textbox-input',
+            'input.form-textbox-input',
+            '.signin-form input[type="text"]',
+            '.signin-form input[type="email"]',
+            '.account-name input',
+            '.username-field input',
+            '.email-field input',
+            // Selectores genéricos más amplios
+            'form input[type="text"]:first-of-type',
+            'form input:first-of-type',
+            '[data-testid*="email"]',
+            '[data-testid*="account"]',
+            '[data-testid*="username"]',
+            // Selectores por posición y contexto
+            '.signin-container input[type="text"]',
+            '.login-form input[type="text"]',
+            '.auth-form input[type="text"]',
+            '#signin input[type="text"]',
+            '#login input[type="text"]',
+            // Selectores más agresivos
+            'input:not([type="hidden"]):not([type="submit"]):not([type="button"])',
+            'input[type="text"]:visible',
+            'input[type="email"]:visible'
+          ];
+
+          // Intentar cada selector
+          for (const selector of emailSelectors) {
+            try {
+              console.log(`🔍 Probando selector: ${selector}`);
+
+              const elements = await this.driver!.findElements(By.css(selector));
+              console.log(`🔍 Elementos encontrados con ${selector}: ${elements.length}`);
+
+              for (const element of elements) {
+                try {
+                  const isDisplayed = await element.isDisplayed();
+                  const isEnabled = await element.isEnabled();
+
+                  if (isDisplayed && isEnabled) {
+                    console.log(`✅ Campo de email encontrado con selector: ${selector}`);
+                    return element;
+                  }
+                } catch (elementError) {
+                  // Continuar con el siguiente elemento
+                  continue;
+                }
+              }
+            } catch (selectorError) {
+              // Continuar con el siguiente selector
+              continue;
+            }
+          }
+
+          // Análisis detallado como último recurso
+          console.log('🔍 Análisis detallado de la página...');
+
+          const allInputs = await this.driver!.findElements(By.css('input'));
+          console.log(`🔍 Total de inputs encontrados: ${allInputs.length}`);
+
+          for (let i = 0; i < allInputs.length; i++) {
+            const input = allInputs[i];
+            try {
+              const isDisplayed = await input.isDisplayed();
+              const isEnabled = await input.isEnabled();
+              const type = await input.getAttribute('type');
+              const id = await input.getAttribute('id');
+              const name = await input.getAttribute('name');
+
+              console.log(`📝 Input ${i + 1}: type="${type}", id="${id}", name="${name}", visible=${isDisplayed}, enabled=${isEnabled}`);
+
+              if (isDisplayed && isEnabled && (type === 'text' || type === 'email' || !type)) {
+                console.log(`✅ Campo de email encontrado por análisis (Input ${i + 1})`);
+                return input;
+              }
+            } catch (inputError) {
+              continue;
+            }
+          }
+
+          throw new Error('No se pudo encontrar el campo de email');
+        },
+        'Búsqueda de campo de email',
+        4,
+        2000
+      );
+
+      // Llenar email con reintentos
+      await this.retryWithBackoff(
+        async () => {
+          await emailField.clear();
+          await emailField.sendKeys(options.email);
+
+          // Verificar que se escribió correctamente
+          const value = await emailField.getAttribute('value');
+          if (value !== options.email) {
+            throw new Error(`Email no se escribió correctamente: esperado "${options.email}", obtenido "${value}"`);
+          }
+
+          console.log('✅ Email ingresado correctamente');
+        },
+        'Ingreso de email',
+        3,
+        1000
+      );
+
+      // Buscar y llenar password con reintentos robustos
+      const passwordField = await this.retryWithBackoff(
+        async () => {
+          await this.ensureDriverActive(options);
+
+          console.log('🔍 Buscando campo de password...');
+
+          const passwordSelectors = [
+            'input[id="password_text_field"]',
+            'input[type="password"]',
+            'input[name="password"]',
+            'input[id*="password"]',
+            'input[aria-label*="password"]',
+            'input[placeholder*="password"]',
+            '.form-textbox-input[type="password"]',
+            'input.form-textbox-input[type="password"]',
+            '[data-testid*="password"]',
+            '.password-field input',
+            '.signin-form input[type="password"]',
+            'form input[type="password"]'
+          ];
+
+          for (const selector of passwordSelectors) {
+            try {
+              console.log(`🔍 Probando selector password: ${selector}`);
+              const elements = await this.driver!.findElements(By.css(selector));
+
+              for (const element of elements) {
+                try {
+                  const isDisplayed = await element.isDisplayed();
+                  const isEnabled = await element.isEnabled();
+
+                  if (isDisplayed && isEnabled) {
+                    console.log(`✅ Campo de password encontrado con selector: ${selector}`);
+                    return element;
+                  }
+                } catch (elementError) {
+                  continue;
+                }
+              }
+            } catch (selectorError) {
+              continue;
+            }
+          }
+
+          throw new Error('No se pudo encontrar el campo de password');
+        },
+        'Búsqueda de campo de password',
+        4,
+        2000
+      );
+
+      // Llenar password con reintentos
+      await this.retryWithBackoff(
+        async () => {
+          await passwordField.clear();
+          await passwordField.sendKeys(options.password);
+
+          // Verificar que se escribió (sin mostrar la password en logs)
+          const value = await passwordField.getAttribute('value');
+          if (!value || value.length !== options.password.length) {
+            throw new Error('Password no se escribió correctamente');
+          }
+
+          console.log('✅ Password ingresado correctamente');
+        },
+        'Ingreso de password',
+        3,
+        1000
+      );
+
+      // Buscar y hacer clic en botón de login con reintentos
+      await this.retryWithBackoff(
+        async () => {
+          await this.ensureDriverActive(options);
+
+          console.log('🔍 Buscando botón de login...');
+
+          const buttonSelectors = [
+            'button[type="submit"]',
+            'input[type="submit"]',
+            'button[id*="sign"]',
+            'button[id*="login"]',
+            '.signin-button',
+            '.form-submit-button',
+            '.btn-primary',
+            'button:contains("Sign In")',
+            'button:contains("Continue")',
+            'button:contains("Next")',
+            '[data-testid*="submit"]',
+            '[data-testid*="login"]',
+            '[data-testid*="signin"]',
+            'form button:last-of-type',
+            'form button[type="button"]'
+          ];
+
+          for (const selector of buttonSelectors) {
+            try {
+              console.log(`🔍 Probando selector botón: ${selector}`);
+              const elements = await this.driver!.findElements(By.css(selector));
+
+              for (const element of elements) {
+                try {
+                  const isDisplayed = await element.isDisplayed();
+                  const isEnabled = await element.isEnabled();
+                  const text = await element.getText();
+
+                  console.log(`🔍 Botón encontrado: visible=${isDisplayed}, enabled=${isEnabled}, text="${text}"`);
+
+                  if (isDisplayed && isEnabled) {
+                    console.log(`✅ Haciendo clic en botón de login con selector: ${selector}`);
+                    await element.click();
+                    return;
+                  }
+                } catch (elementError) {
+                  continue;
+                }
+              }
+            } catch (selectorError) {
+              continue;
+            }
+          }
+
+          throw new Error('No se pudo encontrar el botón de login');
+        },
+        'Clic en botón de login',
+        4,
+        2000
+      );
       
       console.log('📝 Credenciales enviadas, esperando respuesta...');
       

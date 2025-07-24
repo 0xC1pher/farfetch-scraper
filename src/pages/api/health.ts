@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { minioStorage } from '../../modules/minio';
 import { mexaCache } from '../../cache';
-import { loadBrowserMCP, loadScraperr } from '../../utils/moduleLoader';
+import { loadBrowserMCP, loadScraperr, loadDeepScrape } from '../../utils/moduleLoader';
 
 interface HealthResponse {
   success: boolean;
@@ -68,10 +68,11 @@ export default async function handler(
     }
 
     // Verificar estado de todos los servicios
-    const [minioStatus, browserMCPStatus, scraperrStatus, proxyManagerStatus] = await Promise.allSettled([
+    const [minioStatus, browserMCPStatus, scraperrStatus, deepScrapeStatus, proxyManagerStatus] = await Promise.allSettled([
       checkMinioHealth(),
       checkBrowserMCPHealth(),
       checkScraperrHealth(),
+      checkDeepScrapeHealth(),
       checkProxyManagerHealth()
     ]);
 
@@ -88,6 +89,7 @@ export default async function handler(
       minio: minioStatus.status === 'fulfilled' ? minioStatus.value : { status: 'down' as const, available: false },
       browserMCP: browserMCPStatus.status === 'fulfilled' ? browserMCPStatus.value : { status: 'down' as const, available: false },
       scraperr: scraperrStatus.status === 'fulfilled' ? scraperrStatus.value : { status: 'down' as const, available: false },
+      deepScrape: deepScrapeStatus.status === 'fulfilled' ? deepScrapeStatus.value : { status: 'down' as const, available: false },
       proxyManager: proxyManagerStatus.status === 'fulfilled' ? proxyManagerStatus.value : { status: 'down' as const, totalProxies: 0, activeProxies: 0 }
     };
 
@@ -184,6 +186,25 @@ async function checkScraperrHealth() {
     };
   } catch (error) {
     console.error('Scraperr health check error:', error);
+    return {
+      status: 'down' as const,
+      available: false,
+      version: 'error'
+    };
+  }
+}
+
+async function checkDeepScrapeHealth() {
+  try {
+    const deepScrape = await loadDeepScrape();
+    const status = await deepScrape.getStatus();
+    return {
+      status: status.available ? 'up' as const : 'down' as const,
+      available: status.available,
+      version: status.version || 'unknown'
+    };
+  } catch (error) {
+    console.error('Error checking DeepScrape health:', error);
     return {
       status: 'down' as const,
       available: false,
