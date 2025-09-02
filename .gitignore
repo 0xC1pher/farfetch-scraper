@@ -3,12 +3,12 @@ planning-scraper.md
 planning.md 
 dist/
 import/
-.#env
+#.#env
 #env.*
 # ... existing code ...
-#.env
-#.env.local
-#.env.*.local
+.env
+.env.local
+.env.*.local
 
 # Dependencies
 node_modules/
