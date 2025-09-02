@@ -189,8 +189,8 @@ class AutoStart {
         stdio: 'ignore',
         env: {
           ...process.env,
-          MINIO_ROOT_USER: 'minioadmini',
-          MINIO_ROOT_PASSWORD: 'minioadmin'
+          MINIO_ROOT_USER: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+          MINIO_ROOT_PASSWORD: process.env.MINIO_SECRET_KEY || '***REMOVED***'
         }
       });
 

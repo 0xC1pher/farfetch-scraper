@@ -1,0 +1,39 @@
+{
+  "name": "chrome-mcp-server",
+  "description": "a chrome extension to use your own chrome as a mcp server",
+  "author": "hangye",
+  "private": true,
+  "version": "0.0.5",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox",
+    "compile": "vue-tsc --noEmit",
+    "postinstall": "wxt prepare",
+    "lint": "npx eslint .",
+    "lint:fix": "npx eslint . --fix",
+    "format": "npx prettier --write .",
+    "format:check": "npx prettier --check ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "@xenova/transformers": "^2.17.2",
+    "chrome-mcp-shared": "workspace:*",
+    "date-fns": "^4.1.0",
+    "hnswlib-wasm-static": "0.8.5",
+    "vue": "^3.5.13",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.318",
+    "@wxt-dev/module-vue": "^1.0.2",
+    "dotenv": "^16.5.0",
+    "vite-plugin-static-copy": "^3.0.0",
+    "vue-tsc": "^2.2.8",
+    "wxt": "^0.20.0"
+  }
+}

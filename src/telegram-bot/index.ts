@@ -63,6 +63,7 @@ export class MexaTelegramBot {
   private config: BotConfig;
   private userSessions: Map<string, UserSession> = new Map();
   private isRunning: boolean = false;
+  private logoBuffer: Buffer | null = null;
 
   constructor(config: BotConfig) {
     this.config = {
@@ -75,6 +76,31 @@ export class MexaTelegramBot {
     this.orchestrator = null; // Se inicializará en start()
     this.setupCommands();
     this.setupCallbacks();
+    this.loadLogo();
+  }
+
+  /**
+   * Cargar logo MeXa para usar en mensajes
+   */
+  private async loadLogo(): Promise<void> {
+    try {
+      const logoPath = join(process.cwd(), 'public', 'assets', 'logo-mexa.svg');
+
+      if (await fs.access(logoPath).then(() => true).catch(() => false)) {
+        // Convertir SVG a PNG usando sharp
+        const svgBuffer = await fs.readFile(logoPath);
+        this.logoBuffer = await sharp(svgBuffer)
+          .resize(200, 67) // Mantener proporción del logo (120x40 -> 200x67)
+          .png()
+          .toBuffer();
+
+        console.log('✅ Logo MeXa cargado exitosamente');
+      } else {
+        console.log('⚠️ Logo MeXa no encontrado en public/assets/logo-mexa.svg');
+      }
+    } catch (error) {
+      console.log('⚠️ Error cargando logo MeXa:', error);
+    }
   }
 
   /**
@@ -218,8 +244,7 @@ export class MexaTelegramBot {
     const session = this.getOrCreateSession(chatId);
     session.state = 'idle';
 
-    const welcomeMessage = `
-🛍️ *¡Bienvenido a Mexa Bot!*
+    const welcomeMessage = `🛍️ *¡Bienvenido a MeXa Bot!*
 
 Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
 
@@ -230,18 +255,29 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
 /status - Estado del sistema
 /help - Mostrar ayuda
 
-¡Empecemos! Usa /search para buscar ofertas.
-    `;
+¡Empecemos! Usa /search para buscar ofertas.`;
 
-    await this.bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+    // Enviar logo si está disponible
+    if (this.logoBuffer) {
+      try {
+        await this.bot.sendPhoto(chatId, this.logoBuffer, {
+          caption: welcomeMessage,
+          parse_mode: 'Markdown'
+        });
+      } catch (error) {
+        console.log('⚠️ Error enviando logo, usando mensaje de texto:', error);
+        await this.bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+      }
+    } else {
+      await this.bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+    }
   }
 
   /**
    * Manejar comando /help
    */
   private async handleHelpCommand(chatId: string): Promise<void> {
-    const helpMessage = `
-🤖 *Ayuda de Mexa Bot*
+    const helpMessage = `🤖 *Ayuda de MeXa Bot*
 
 *Comandos principales:*
 • /start - Iniciar el bot
@@ -261,10 +297,22 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
 • Marca específica
 • Descuento mínimo
 
-¿Necesitas más ayuda? Contacta al administrador.
-    `;
+¿Necesitas más ayuda? Contacta al administrador.`;
 
-    await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    // Enviar logo si está disponible
+    if (this.logoBuffer) {
+      try {
+        await this.bot.sendPhoto(chatId, this.logoBuffer, {
+          caption: helpMessage,
+          parse_mode: 'Markdown'
+        });
+      } catch (error) {
+        console.log('⚠️ Error enviando logo en ayuda, usando mensaje de texto:', error);
+        await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+      }
+    } else {
+      await this.bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
+    }
   }
 
   /**
@@ -272,14 +320,28 @@ Soy tu asistente personal para encontrar las mejores ofertas en Farfetch.
    */
   private async handleSearchCommand(chatId: string): Promise<void> {
     const session = this.getOrCreateSession(chatId);
-    
+
     try {
-      await this.bot.sendMessage(chatId, '🔍 Buscando ofertas...');
-      
+      // Enviar mensaje de búsqueda con logo si está disponible
+      const searchMessage = '🔍 *Buscando las mejores ofertas de Farfetch...*\n\n⏳ Un momento por favor...';
+
+      if (this.logoBuffer) {
+        try {
+          await this.bot.sendPhoto(chatId, this.logoBuffer, {
+            caption: searchMessage,
+            parse_mode: 'Markdown'
+          });
+        } catch (error) {
+          await this.bot.sendMessage(chatId, searchMessage, { parse_mode: 'Markdown' });
+        }
+      } else {
+        await this.bot.sendMessage(chatId, searchMessage, { parse_mode: 'Markdown' });
+      }
+
       const offers = await this.getPublicOffers(session.filters);
-      
+
       if (offers.length === 0) {
-        await this.bot.sendMessage(chatId, 
+        await this.bot.sendMessage(chatId,
           '😔 No se encontraron ofertas con los filtros actuales.\n\nPrueba ajustar tus filtros con /filters'
         );
         return;

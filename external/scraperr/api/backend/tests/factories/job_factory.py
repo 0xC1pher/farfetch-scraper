@@ -1,0 +1,50 @@
+# STL
+import uuid
+
+# PDM
+from faker import Faker
+
+# LOCAL
+from api.backend.job.models import Element, JobOptions, CapturedElement
+from api.backend.schemas.job import Job
+
+fake = Faker()
+
+
+def create_job(
+    job_options: JobOptions = JobOptions(multi_page_scrape=False, custom_headers={})
+):
+    return Job(
+        id=uuid.uuid4().hex,
+        url="https://example.com",
+        elements=[Element(name="test", xpath="xpath")],
+        job_options=job_options,
+    )
+
+
+def create_completed_job() -> Job:
+    return Job(
+        id=uuid.uuid4().hex,
+        url="http://example.com",
+        elements=[
+            Element(
+                name="element_name",
+                xpath="//div",
+                url="https://example.com",
+            )
+        ],
+        job_options=JobOptions(multi_page_scrape=False, custom_headers={}),
+        user=fake.name(),
+        time_created=fake.date(),
+        result=[
+            {
+                "https://example.com": {
+                    "element_name": [
+                        CapturedElement(
+                            xpath="//div", text="example", name="element_name"
+                        )
+                    ]
+                }
+            }
+        ],
+    )

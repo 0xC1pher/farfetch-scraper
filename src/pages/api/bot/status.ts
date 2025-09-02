@@ -22,6 +22,8 @@ async function botStatusHandler(
   req: NextApiRequest,
   res: NextApiResponse<BotStatusResponse>
 ) {
+  console.log('[API] GET /api/bot/status - Client:', req.socket.remoteAddress);
+
   if (req.method !== 'GET') {
     return res.status(405).json({
       success: false,
@@ -35,7 +37,7 @@ async function botStatusHandler(
     const isConfigured = !!botToken;
 
     if (!isConfigured) {
-      return res.status(200).json({
+      const response = {
         success: true,
         bot: {
           isConfigured: false,
@@ -44,7 +46,9 @@ async function botStatusHandler(
           uptime: 0
         },
         message: 'Bot not configured - TELEGRAM_BOT_TOKEN missing'
-      });
+      };
+      console.log('[API] GET /api/bot/status - 200 - Bot not configured');
+      return res.status(200).json(response);
     }
 
     // Verificar si el bot está realmente funcionando
@@ -77,18 +81,21 @@ async function botStatusHandler(
       isRunning: isRunning,
       activeSessions: activeSessions,
       uptime: Math.floor(process.uptime()),
-      lastActivity: lastActivity,
+      lastActivity: lastActivity || undefined,
       config: {
         maxOffersPerMessage: parseInt(process.env.MAX_OFFERS_PER_MESSAGE || '10'),
         hasAdmins: !!(process.env.TELEGRAM_ADMIN_CHAT_IDS?.length)
       }
     };
 
-    return res.status(200).json({
+    const response = {
       success: true,
       bot: botStatus,
       message: 'Bot status retrieved successfully'
-    });
+    };
+
+    console.log('[API] GET /api/bot/status - 200 - Bot status retrieved');
+    return res.status(200).json(response);
 
   } catch (error) {
     console.error('Error getting bot status:', error);
